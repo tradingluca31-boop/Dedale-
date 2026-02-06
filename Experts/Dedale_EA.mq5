@@ -47,7 +47,7 @@ input int      H4_EMA_Slow          = 100;         // H4 EMA lente (cross signal
 input double   H4_EMA_MinDistance   = 0.15;        // Distance min EMA50/100 (% du prix)
 input int      H4_CrossLookback     = 40;          // Lookback pour cross recent (barres H4)
 input int      H4_EMA_Filter        = 55;          // H4 EMA 55 (FILTRE TENDANCE PRINCIPAL)
-input bool     H4_UseStructure      = true;        // H4 Verifier structure HH/HL
+input bool     H4_UseStructure      = false;       // H4 Structure HH/HL (DESACTIVE - implicite dans EMA)
 
 input group "=== H1 VALIDATION SETTINGS ==="
 input int      H1_EMA_Fast          = 21;          // H1 EMA rapide
@@ -58,14 +58,14 @@ input int      H1_ADX_Threshold     = 20;          // H1 ADX seuil tendance
 input group "=== M15 ENTRY SETTINGS ==="
 input int      M15_EMA              = 21;          // M15 EMA pour rebond
 input int      M15_LookbackBars     = 20;          // M15 Lookback pour swings
-input double   OTE_FibLow           = 0.5;         // OTE Fib bas (50%)
+input double   OTE_FibLow           = 0.382;       // OTE Fib bas (38.2% - capte les trends forts)
 input double   OTE_FibHigh          = 0.786;       // OTE Fib haut (78.6%)
 input bool     WaitBullishCandle    = true;        // Attendre bougie de confirmation
 
 input group "=== ENTRY CONFIRMATION INDICATORS ==="
 input int      RSI_Period           = 14;          // RSI Periode
-input int      RSI_Oversold         = 50;          // RSI Survente (BUY si RSI < X)
-input int      RSI_Overbought       = 50;          // RSI Surachat (SELL si RSI > X)
+input int      RSI_Oversold         = 45;          // RSI Survente (BUY si RSI < X)
+input int      RSI_Overbought       = 55;          // RSI Surachat (SELL si RSI > X)
 input int      Stoch_K              = 14;          // Stochastic %K
 input int      Stoch_D              = 3;           // Stochastic %D
 input int      Stoch_Slowing        = 3;           // Stochastic Slowing
@@ -78,13 +78,13 @@ input group "=== RISK MANAGEMENT ==="
 input double   RiskPercent          = 1.0;         // Risque par trade (%)
 input double   MinRiskReward        = 3.0;         // R:R minimum (3:1 pour FTMO)
 input double   SL_ATR_Buffer        = 0.5;         // Buffer SL sous structure (x ATR)
-input double   SL_ATR_Min           = 3.0;         // SL minimum (x ATR)
-input double   SL_ATR_Max           = 3.0;         // SL maximum (x ATR)
+input double   SL_ATR_Min           = 2.5;         // SL minimum (x ATR)
+input double   SL_ATR_Max           = 2.5;         // SL maximum (x ATR)
 
 input group "=== POSITION MANAGEMENT ==="
 input bool     UseBreakEven         = true;        // Activer Break Even
-input double   BE_TriggerR          = 2.5;         // BE se declenche a X R
-input double   BE_LockR             = 1.0;         // BE verrouille X R de profit
+input double   BE_TriggerR          = 1.5;         // BE se declenche a X R
+input double   BE_LockR             = 0.5;         // BE verrouille X R de profit
 input bool     UsePartialTP         = false;       // TP partiel (DESACTIVE - garder 100%)
 input double   PartialTP_Percent    = 50.0;        // % a fermer au TP1
 input bool     UseTrailingSL        = false;       // Trailing SL (DESACTIVE)
@@ -93,7 +93,7 @@ input double   TrailingATR_Mult     = 1.5;         // Trailing = ATR x mult
 input group "=== FTMO PROTECTION ==="
 input double   MaxDailyDD           = 100.0;       // Max DD journalier (%) - DESACTIVE
 input double   MaxTotalDD           = 100.0;       // Max DD total (%) - DESACTIVE
-input int      MaxDailyTrades       = 1;           // Max 1 trade/jour (SELECTIF!)
+input int      MaxDailyTrades       = 2;           // Max 2 trades/jour
 input int      MaxOpenPositions     = 1;           // Max positions ouvertes
 
 input group "=== TIME FILTER ==="
@@ -467,15 +467,15 @@ TREND_STATE AnalyzeH1Validation() {
     bool smmaRising = (smma50[1] > smma50[2]);
     bool smmaFalling = (smma50[1] < smma50[2]);
 
-    //=== BULLISH: Prix > SMMA50 + SMMA monte ===
-    if(priceAboveSMMA && smmaRising) {
-        Print("[H1] VALIDATION: BULLISH | Prix > SMMA50 | SMMA Rising");
+    //=== BULLISH: Prix > SMMA50 (pente ignoree - permet de capter les pullbacks) ===
+    if(priceAboveSMMA) {
+        Print("[H1] VALIDATION: BULLISH | Prix > SMMA50");
         return TREND_BULL;
     }
 
-    //=== BEARISH: Prix < SMMA50 + SMMA descend ===
-    if(priceBelowSMMA && smmaFalling) {
-        Print("[H1] VALIDATION: BEARISH | Prix < SMMA50 | SMMA Falling");
+    //=== BEARISH: Prix < SMMA50 ===
+    if(priceBelowSMMA) {
+        Print("[H1] VALIDATION: BEARISH | Prix < SMMA50");
         return TREND_BEAR;
     }
 
