@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
 //|                                                    Dedale_EA.mq5 |
 //|                                                             Luca |
-//|          DEDALE V14 - Gold Sniper Recovery (Session US)          |
+//|    DEDALE V16 - Market Structure + ZLEMA Confluence               |
 //+------------------------------------------------------------------+
-#property copyright "Luca - DEDALE EA v14"
-#property version   "14.00"
-#property description "Sniper: Session US 13h-18h uniquement"
-#property description "EMA13/50 Cross + Bougie Impulsion + ADX>25 + EMA200 H1"
-#property description "Placer sur graphique M15"
+#property copyright "Luca - DEDALE EA v16"
+#property version   "16.00"
+#property description "H4 EMA50 Filter + H1 ADX + Confluence Score"
+#property description "Signals: EMA50/200 Cross + BOS/CHOCH + ZLEMA"
+#property description "Placer sur graphique H1"
 #property strict
 
 #include <Trade\Trade.mqh>
@@ -16,63 +16,89 @@
 //| INPUTS                                                            |
 //+------------------------------------------------------------------+
 input group "=== MONEY MANAGEMENT ==="
-input double   InputRiskUSD         = 50.0;     // Risque fixe par trade ($) - reduit pour recovery
-input double   InputRewardRatio     = 3.0;      // Ratio R:R (TP = SL x 3)
-input int      InputMagicNumber     = 111111;   // ID Unique
+input double   InputRiskUSD         = 100.0;    // Risque fixe par trade ($)
+input double   InputRiskReward      = 3.0;      // Ratio R:R (TP = SL x 3)
+input int      InputMagicNumber     = 161616;   // ID Unique V16
 
-input group "=== H1 TREND FILTER ==="
-input int      InputH1EmaPeriod     = 200;      // EMA H1 (tendance majeure)
+input group "=== H4 TREND FILTER ==="
+input int      InputH4EmaPeriod     = 50;       // EMA H4 (filtre directionnel)
 
-input group "=== M15 ENTRY SIGNAL ==="
-input int      InputEmaFast         = 13;       // EMA rapide M15
-input int      InputEmaSlow         = 50;       // EMA lente M15
-input int      InputRsiPeriod       = 14;       // RSI M15
-input int      InputRsiLevel        = 50;       // RSI seuil momentum
-input int      InputAdxPeriod       = 14;       // ADX M15
-input int      InputAdxThreshold    = 25;       // ADX minimum (25 = plus strict)
-input int      InputAtrPeriod       = 14;       // ATR M15
-input double   InputAtrMultSL       = 1.5;      // Multiplicateur ATR pour SL
+input group "=== H1 ADX FILTER ==="
+input int      InputH1AdxPeriod     = 14;       // ADX period H1
+input int      InputH1AdxThreshold  = 20;       // ADX minimum H1
 
-input group "=== FILTRE BOUGIE IMPULSION ==="
-input int      MinCandleSizePoints  = 100;      // Taille min du corps (points = 10 pips)
+input group "=== SIGNAL 1: EMA CROSS H1 ==="
+input int      InputH1EmaFast       = 50;       // EMA rapide H1
+input int      InputH1EmaSlow       = 200;      // EMA lente H1
+input int      InputCrossLookback   = 10;       // Lookback barres pour cross recent
 
-input group "=== BREAK-EVEN ==="
-input bool     UseBreakEven         = true;     // Activer Break-Even
-input double   BreakEvenTriggerRatio = 1.0;     // BE a 1R
-input int      BreakEvenBufferPts   = 20;       // Buffer BE (20 points)
+input group "=== SIGNAL 2: BOS/CHOCH H1 ==="
+input int      InputSwingStrength   = 3;        // Force swing (barres chaque cote)
+input int      InputSwingLookback   = 50;       // Lookback pour swing points
+
+input group "=== SIGNAL 3: ZLEMA H1 ==="
+input int      InputZlemaPeriod     = 21;       // ZLEMA period
+input double   InputZlemaSlopeMin   = 2.0;      // Pente min ZLEMA sur 3 barres ($)
+
+input group "=== CONFLUENCE ==="
+input int      InputMinScore        = 2;        // Score minimum pour trader (sur 3)
+
+input group "=== ATR & SL/TP ==="
+input int      InputAtrPeriod       = 14;       // ATR period H1
+input double   InputAtrMultSL       = 2.0;      // Multiplicateur ATR pour SL
 
 input group "=== FILTRES ==="
-input int      InputStartHour       = 13;       // Session US debut (13h)
-input int      InputEndHour         = 18;       // Session US fin (18h)
-input int      InputMaxDailyTrades  = 1;        // Max 1 trade par jour
+input int      InputStartHour       = 7;        // Session debut (7h London)
+input int      InputEndHour         = 18;       // Session fin (18h)
+input int      InputMaxDailyTrades  = 1;        // Max trades par jour
 input int      InputMaxSpread       = 30;       // Spread max (points)
+input int      InputMaxTradeHours   = 96;       // Duree max position (heures)
+
+//+------------------------------------------------------------------+
+//| STRUCTURES                                                        |
+//+------------------------------------------------------------------+
+struct SwingPoint
+{
+   double   price;
+   int      barIndex;
+};
 
 //+------------------------------------------------------------------+
 //| VARIABLES GLOBALES                                                |
 //+------------------------------------------------------------------+
 CTrade         trade;
-int            handleH1Ema;
-int            handleEmaFast;
-int            handleEmaSlow;
-int            handleRsi;
-int            handleAtr;
-int            handleAdx;
+
+//--- Indicator handles
+int            handleH4Ema;
+int            handleH1EmaFast;
+int            handleH1EmaSlow;
+int            handleH1Adx;
+int            handleH1Atr;
+
+//--- ZLEMA state (3 dernières valeurs pour calcul de pente)
+double         g_Zlema[3];           // [0]=actuel, [1]=prev, [2]=prev-prev
+int            g_ZlemaCount;         // Nombre de valeurs calculees
+bool           g_ZlemaInitialized;
+
+//--- Swing point cache
+SwingPoint     g_SwingHighs[];
+SwingPoint     g_SwingLows[];
+datetime       g_LastSwingScan;
 
 //+------------------------------------------------------------------+
 //| INITIALISATION                                                    |
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   handleH1Ema   = iMA(_Symbol, PERIOD_H1, InputH1EmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
-   handleEmaFast = iMA(_Symbol, PERIOD_M15, InputEmaFast, 0, MODE_EMA, PRICE_CLOSE);
-   handleEmaSlow = iMA(_Symbol, PERIOD_M15, InputEmaSlow, 0, MODE_EMA, PRICE_CLOSE);
-   handleRsi     = iRSI(_Symbol, PERIOD_M15, InputRsiPeriod, PRICE_CLOSE);
-   handleAtr     = iATR(_Symbol, PERIOD_M15, InputAtrPeriod);
-   handleAdx     = iADX(_Symbol, PERIOD_M15, InputAdxPeriod);
+   handleH4Ema     = iMA(_Symbol, PERIOD_H4, InputH4EmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
+   handleH1EmaFast = iMA(_Symbol, PERIOD_H1, InputH1EmaFast, 0, MODE_EMA, PRICE_CLOSE);
+   handleH1EmaSlow = iMA(_Symbol, PERIOD_H1, InputH1EmaSlow, 0, MODE_EMA, PRICE_CLOSE);
+   handleH1Adx     = iADX(_Symbol, PERIOD_H1, InputH1AdxPeriod);
+   handleH1Atr     = iATR(_Symbol, PERIOD_H1, InputAtrPeriod);
 
-   if(handleH1Ema == INVALID_HANDLE || handleEmaFast == INVALID_HANDLE ||
-      handleEmaSlow == INVALID_HANDLE || handleRsi == INVALID_HANDLE ||
-      handleAtr == INVALID_HANDLE || handleAdx == INVALID_HANDLE)
+   if(handleH4Ema == INVALID_HANDLE || handleH1EmaFast == INVALID_HANDLE ||
+      handleH1EmaSlow == INVALID_HANDLE || handleH1Adx == INVALID_HANDLE ||
+      handleH1Atr == INVALID_HANDLE)
    {
       Print("ERREUR: Impossible de creer les indicateurs.");
       return(INIT_FAILED);
@@ -82,11 +108,19 @@ int OnInit()
    trade.SetDeviationInPoints(15);
    trade.SetTypeFilling(ORDER_FILLING_IOC);
 
-   Print(">> DEDALE V14 SNIPER | Session ", InputStartHour, "h-", InputEndHour, "h",
-         " | H1: EMA", InputH1EmaPeriod,
-         " | M15: EMA", InputEmaFast, "/", InputEmaSlow,
-         " + ADX>", InputAdxThreshold,
-         " + MinCandle=", MinCandleSizePoints, "pts",
+   //--- Init ZLEMA
+   g_Zlema[0] = 0; g_Zlema[1] = 0; g_Zlema[2] = 0;
+   g_ZlemaCount = 0;
+   g_ZlemaInitialized = false;
+   g_LastSwingScan = 0;
+
+   Print(">> DEDALE V16 CONFLUENCE | Session ", InputStartHour, "h-", InputEndHour, "h",
+         " | Filter: H4 EMA", InputH4EmaPeriod, " + H1 ADX>", InputH1AdxThreshold,
+         " | Signals: EMA", InputH1EmaFast, "/", InputH1EmaSlow,
+         " + BOS/CHOCH(sw", InputSwingStrength, ")",
+         " + ZLEMA(", InputZlemaPeriod, ")",
+         " | MinScore=", InputMinScore, "/3",
+         " | SL=", InputAtrMultSL, "xATR | RR=1:", InputRiskReward,
          " | Risk=$", InputRiskUSD);
    return(INIT_SUCCEEDED);
 }
@@ -96,12 +130,11 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
-   if(handleH1Ema != INVALID_HANDLE)   IndicatorRelease(handleH1Ema);
-   if(handleEmaFast != INVALID_HANDLE) IndicatorRelease(handleEmaFast);
-   if(handleEmaSlow != INVALID_HANDLE) IndicatorRelease(handleEmaSlow);
-   if(handleRsi != INVALID_HANDLE)     IndicatorRelease(handleRsi);
-   if(handleAtr != INVALID_HANDLE)     IndicatorRelease(handleAtr);
-   if(handleAdx != INVALID_HANDLE)     IndicatorRelease(handleAdx);
+   if(handleH4Ema != INVALID_HANDLE)     IndicatorRelease(handleH4Ema);
+   if(handleH1EmaFast != INVALID_HANDLE) IndicatorRelease(handleH1EmaFast);
+   if(handleH1EmaSlow != INVALID_HANDLE) IndicatorRelease(handleH1EmaSlow);
+   if(handleH1Adx != INVALID_HANDLE)     IndicatorRelease(handleH1Adx);
+   if(handleH1Atr != INVALID_HANDLE)     IndicatorRelease(handleH1Atr);
 }
 
 //+------------------------------------------------------------------+
@@ -114,47 +147,24 @@ void OnTick()
 }
 
 //+------------------------------------------------------------------+
-//| BREAK-EVEN                                                        |
+//| GESTION DES POSITIONS - Fermer si duree > max heures              |
 //+------------------------------------------------------------------+
 void ManagePositions()
 {
-   if(!UseBreakEven) return;
-
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       if(PositionGetSymbol(i) != _Symbol) continue;
       if(PositionGetInteger(POSITION_MAGIC) != InputMagicNumber) continue;
 
-      ulong  ticket    = PositionGetInteger(POSITION_TICKET);
-      double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
-      double sl        = PositionGetDouble(POSITION_SL);
-      double tp        = PositionGetDouble(POSITION_TP);
-      double current   = PositionGetDouble(POSITION_PRICE_CURRENT);
-      ENUM_POSITION_TYPE type = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
+      ulong  ticket   = PositionGetInteger(POSITION_TICKET);
+      datetime openTime = (datetime)PositionGetInteger(POSITION_TIME);
+      double elapsed   = (double)(TimeCurrent() - openTime) / 3600.0;
 
-      double slDistance = MathAbs(openPrice - sl);
-      if(slDistance == 0) continue;
-
-      double triggerDist = slDistance * BreakEvenTriggerRatio;
-      double buffer = BreakEvenBufferPts * _Point;
-
-      if(type == POSITION_TYPE_BUY && current >= openPrice + triggerDist)
+      if(elapsed >= InputMaxTradeHours)
       {
-         double newSL = openPrice + buffer;
-         if(newSL > sl)
-         {
-            trade.PositionModify(ticket, NormalizeDouble(newSL, _Digits), tp);
-            Print(">>> BE [BUY] | SL -> ", NormalizeDouble(newSL, _Digits));
-         }
-      }
-      else if(type == POSITION_TYPE_SELL && current <= openPrice - triggerDist)
-      {
-         double newSL = openPrice - buffer;
-         if(newSL < sl)
-         {
-            trade.PositionModify(ticket, NormalizeDouble(newSL, _Digits), tp);
-            Print(">>> BE [SELL] | SL -> ", NormalizeDouble(newSL, _Digits));
-         }
+         trade.PositionClose(ticket);
+         Print(">>> FERME (TIMEOUT) | Ticket #", ticket,
+               " | Duree=", NormalizeDouble(elapsed, 1), "h >= ", InputMaxTradeHours, "h max");
       }
    }
 }
@@ -167,127 +177,381 @@ void EntryLogic()
    if(CountPositions() > 0) return;
    if(CountTodayTrades() >= InputMaxDailyTrades) return;
 
-   //--- Filtre horaire SESSION US (13h-18h)
+   //--- Filtre horaire
    MqlDateTime dt;
    TimeCurrent(dt);
-   if(dt.hour < InputStartHour || dt.hour >= InputEndHour)
-   {
-      return;
-   }
+   if(dt.hour < InputStartHour || dt.hour >= InputEndHour) return;
 
    //--- Filtre spread
    long spread = SymbolInfoInteger(_Symbol, SYMBOL_SPREAD);
    if(spread > InputMaxSpread) return;
 
-   //--- Nouvelle bougie M15 seulement
+   //--- Nouvelle bougie H1 seulement
    static datetime lastBar = 0;
-   datetime currentBar = iTime(_Symbol, PERIOD_M15, 0);
+   datetime currentBar = iTime(_Symbol, PERIOD_H1, 0);
    if(currentBar == lastBar) return;
    lastBar = currentBar;
 
-   //=== ETAPE 1: H1 TREND (EMA 200) ===
-   double h1Ema[];
-   ArraySetAsSeries(h1Ema, true);
-   if(CopyBuffer(handleH1Ema, 0, 0, 2, h1Ema) < 2) return;
+   //=== FILTRE 1: H4 EMA50 (direction) ===
+   double h4Ema[];
+   ArraySetAsSeries(h4Ema, true);
+   if(CopyBuffer(handleH4Ema, 0, 0, 2, h4Ema) < 2) return;
 
-   double currentPrice = iClose(_Symbol, PERIOD_M15, 1);
-   bool h1Bullish = (currentPrice > h1Ema[0]);
-   bool h1Bearish = (currentPrice < h1Ema[0]);
+   double h1Close = iClose(_Symbol, PERIOD_H1, 1);
 
-   //=== ETAPE 2: M15 INDICATORS ===
-   double emaFast[], emaSlow[], rsi[], atr[], adx[];
-   ArraySetAsSeries(emaFast, true);
-   ArraySetAsSeries(emaSlow, true);
-   ArraySetAsSeries(rsi, true);
-   ArraySetAsSeries(atr, true);
-   ArraySetAsSeries(adx, true);
+   int direction = 0;
+   if(h1Close > h4Ema[1])      direction = +1;   // Bullish
+   else if(h1Close < h4Ema[1]) direction = -1;   // Bearish
+   else
+   {
+      Print(">>> NO TRADE | Prix = EMA50 H4 (neutre)");
+      return;
+   }
 
-   if(CopyBuffer(handleEmaFast, 0, 0, 3, emaFast) < 3) return;
-   if(CopyBuffer(handleEmaSlow, 0, 0, 3, emaSlow) < 3) return;
-   if(CopyBuffer(handleRsi, 0, 0, 3, rsi) < 3) return;
-   if(CopyBuffer(handleAtr, 0, 0, 3, atr) < 3) return;
-   if(CopyBuffer(handleAdx, 0, 0, 3, adx) < 3) return;
+   //=== FILTRE 2: H1 ADX > 20 ===
+   double adxBuf[];
+   ArraySetAsSeries(adxBuf, true);
+   if(CopyBuffer(handleH1Adx, 0, 0, 2, adxBuf) < 2) return;
+   double adxVal = adxBuf[1];
 
-   bool crossUp   = (emaFast[2] <= emaSlow[2] && emaFast[1] > emaSlow[1]);
-   bool crossDown = (emaFast[2] >= emaSlow[2] && emaFast[1] < emaSlow[1]);
+   if(adxVal < InputH1AdxThreshold)
+   {
+      Print(">>> NO TRADE | ADX H1=", NormalizeDouble(adxVal, 1), " < ", InputH1AdxThreshold);
+      return;
+   }
 
-   double rsiVal = rsi[1];
-   double atrVal = atr[1];
-   double adxVal = adx[1];
+   //=== FILTRES OK - CALCUL DES SIGNAUX ===
+   int confluenceScore = 0;
+   string signals = "";
 
+   //--- Signal 1: EMA 50/200 Cross
+   int crossSignal = CheckEmaCross();
+   if(crossSignal == direction)
+   {
+      confluenceScore++;
+      signals += "EMA_CROSS ";
+   }
+
+   //--- Signal 2: BOS/CHOCH
+   int structureSignal = CheckMarketStructure();
+   if(structureSignal == direction)
+   {
+      confluenceScore++;
+      signals += "BOS/CHOCH ";
+   }
+
+   //--- Signal 3: ZLEMA
+   int zlemaSignal = CheckZLEMA();
+   if(zlemaSignal == direction)
+   {
+      confluenceScore++;
+      signals += "ZLEMA ";
+   }
+
+   //=== CONFLUENCE CHECK ===
+   Print(">>> CONFLUENCE | Score=", confluenceScore, "/3",
+         " | Dir=", (direction > 0 ? "BULL" : "BEAR"),
+         " | ADX=", NormalizeDouble(adxVal, 1),
+         " | Signals: ", signals);
+
+   if(confluenceScore < InputMinScore)
+   {
+      Print(">>> SKIP | Score ", confluenceScore, " < Min ", InputMinScore);
+      return;
+   }
+
+   //--- Lire ATR H1
+   double atrBuf[];
+   ArraySetAsSeries(atrBuf, true);
+   if(CopyBuffer(handleH1Atr, 0, 0, 2, atrBuf) < 2) return;
+   double atrVal = atrBuf[1];
    if(atrVal <= 0) return;
 
-   //--- Pas de cross ? On sort
-   if(!crossUp && !crossDown) return;
+   //--- Execute
+   if(direction == +1)
+      ExecuteTrade(ORDER_TYPE_BUY, atrVal, confluenceScore, signals);
+   else
+      ExecuteTrade(ORDER_TYPE_SELL, atrVal, confluenceScore, signals);
+}
 
-   //=== ETAPE 3: FILTRE ADX (puissance) ===
-   if(adxVal < InputAdxThreshold)
+//+------------------------------------------------------------------+
+//| SIGNAL 1: EMA 50/200 CROSS (lookback)                            |
+//+------------------------------------------------------------------+
+int CheckEmaCross()
+{
+   int barsNeeded = InputCrossLookback + 2;
+   double emaFast[], emaSlow[];
+   ArraySetAsSeries(emaFast, true);
+   ArraySetAsSeries(emaSlow, true);
+
+   if(CopyBuffer(handleH1EmaFast, 0, 0, barsNeeded, emaFast) < barsNeeded) return 0;
+   if(CopyBuffer(handleH1EmaSlow, 0, 0, barsNeeded, emaSlow) < barsNeeded) return 0;
+
+   for(int i = 1; i <= InputCrossLookback; i++)
    {
-      Print(">>> IGNORE | ADX=", NormalizeDouble(adxVal, 1), " < ", InputAdxThreshold, " (range/pas de force)");
+      //--- Cross UP: EMA50 passe au-dessus de EMA200
+      if(emaFast[i + 1] <= emaSlow[i + 1] && emaFast[i] > emaSlow[i])
+      {
+         Print(">>> SIGNAL EMA_CROSS | Cross UP il y a ", i, " barres H1");
+         return +1;
+      }
+      //--- Cross DOWN: EMA50 passe en-dessous de EMA200
+      if(emaFast[i + 1] >= emaSlow[i + 1] && emaFast[i] < emaSlow[i])
+      {
+         Print(">>> SIGNAL EMA_CROSS | Cross DOWN il y a ", i, " barres H1");
+         return -1;
+      }
+   }
+
+   return 0;
+}
+
+//+------------------------------------------------------------------+
+//| SWING POINTS DETECTION (cached per H1 bar)                       |
+//+------------------------------------------------------------------+
+void UpdateSwingPoints()
+{
+   datetime currentBar = iTime(_Symbol, PERIOD_H1, 0);
+   if(currentBar == g_LastSwingScan) return;
+   g_LastSwingScan = currentBar;
+
+   ArrayResize(g_SwingHighs, 0);
+   ArrayResize(g_SwingLows, 0);
+
+   int maxBar = InputSwingLookback - InputSwingStrength;
+
+   for(int i = InputSwingStrength; i <= maxBar; i++)
+   {
+      //--- Swing High
+      double high = iHigh(_Symbol, PERIOD_H1, i);
+      bool isSwingHigh = true;
+      for(int j = 1; j <= InputSwingStrength; j++)
+      {
+         if(iHigh(_Symbol, PERIOD_H1, i - j) >= high || iHigh(_Symbol, PERIOD_H1, i + j) >= high)
+         {
+            isSwingHigh = false;
+            break;
+         }
+      }
+      if(isSwingHigh)
+      {
+         int sz = ArraySize(g_SwingHighs);
+         ArrayResize(g_SwingHighs, sz + 1);
+         g_SwingHighs[sz].price = high;
+         g_SwingHighs[sz].barIndex = i;
+      }
+
+      //--- Swing Low
+      double low = iLow(_Symbol, PERIOD_H1, i);
+      bool isSwingLow = true;
+      for(int j = 1; j <= InputSwingStrength; j++)
+      {
+         if(iLow(_Symbol, PERIOD_H1, i - j) <= low || iLow(_Symbol, PERIOD_H1, i + j) <= low)
+         {
+            isSwingLow = false;
+            break;
+         }
+      }
+      if(isSwingLow)
+      {
+         int sz = ArraySize(g_SwingLows);
+         ArrayResize(g_SwingLows, sz + 1);
+         g_SwingLows[sz].price = low;
+         g_SwingLows[sz].barIndex = i;
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| SIGNAL 2: BOS / CHOCH                                            |
+//| BOS = continuation (break dans le sens de la structure)           |
+//| CHOCH = reversal (break contre la structure)                      |
+//+------------------------------------------------------------------+
+int CheckMarketStructure()
+{
+   UpdateSwingPoints();
+
+   if(ArraySize(g_SwingHighs) < 2 || ArraySize(g_SwingLows) < 2)
+   {
+      Print(">>> BOS/CHOCH | Pas assez de swing points (H=", ArraySize(g_SwingHighs),
+            " L=", ArraySize(g_SwingLows), ")");
+      return 0;
+   }
+
+   //--- Les swings sont tries du plus recent [0] au plus ancien
+   double sh0 = g_SwingHighs[0].price;   // Dernier swing high
+   double sh1 = g_SwingHighs[1].price;   // Avant-dernier swing high
+   double sl0 = g_SwingLows[0].price;    // Dernier swing low
+   double sl1 = g_SwingLows[1].price;    // Avant-dernier swing low
+
+   bool higherHigh = (sh0 > sh1);
+   bool higherLow  = (sl0 > sl1);
+   bool lowerHigh  = (sh0 < sh1);
+   bool lowerLow   = (sl0 < sl1);
+
+   bool isUptrend   = (higherHigh && higherLow);
+   bool isDowntrend = (lowerHigh && lowerLow);
+
+   double currentPrice = iClose(_Symbol, PERIOD_H1, 1);
+
+   //--- BOS BULLISH: Uptrend + prix casse dernier swing high
+   if(isUptrend && currentPrice > sh0)
+   {
+      Print(">>> SIGNAL BOS BULLISH | Prix ", NormalizeDouble(currentPrice, 2),
+            " > SwingHigh ", NormalizeDouble(sh0, 2), " (continuation)");
+      return +1;
+   }
+
+   //--- BOS BEARISH: Downtrend + prix casse dernier swing low
+   if(isDowntrend && currentPrice < sl0)
+   {
+      Print(">>> SIGNAL BOS BEARISH | Prix ", NormalizeDouble(currentPrice, 2),
+            " < SwingLow ", NormalizeDouble(sl0, 2), " (continuation)");
+      return -1;
+   }
+
+   //--- CHOCH BULLISH: Downtrend + prix casse dernier lower high
+   if(isDowntrend && currentPrice > sh0)
+   {
+      Print(">>> SIGNAL CHOCH BULLISH | Prix ", NormalizeDouble(currentPrice, 2),
+            " > LowerHigh ", NormalizeDouble(sh0, 2), " (reversal)");
+      return +1;
+   }
+
+   //--- CHOCH BEARISH: Uptrend + prix casse dernier higher low
+   if(isUptrend && currentPrice < sl0)
+   {
+      Print(">>> SIGNAL CHOCH BEARISH | Prix ", NormalizeDouble(currentPrice, 2),
+            " < HigherLow ", NormalizeDouble(sl0, 2), " (reversal)");
+      return -1;
+   }
+
+   //--- Pas de break
+   string structure = isUptrend ? "UPTREND" : (isDowntrend ? "DOWNTREND" : "MIXED");
+   Print(">>> BOS/CHOCH | Pas de break | Structure=", structure,
+         " | Prix=", NormalizeDouble(currentPrice, 2),
+         " | SH=", NormalizeDouble(sh0, 2), "/", NormalizeDouble(sh1, 2),
+         " | SL=", NormalizeDouble(sl0, 2), "/", NormalizeDouble(sl1, 2));
+   return 0;
+}
+
+//+------------------------------------------------------------------+
+//| ZLEMA UPDATE (manual calculation)                                 |
+//| ZLEMA = EMA( 2*Close - Close[lag], period )                      |
+//| lag = (period - 1) / 2                                           |
+//| Stocke 3 valeurs pour calcul de pente sur 3 barres               |
+//+------------------------------------------------------------------+
+void UpdateZLEMA()
+{
+   int lag = (InputZlemaPeriod - 1) / 2;
+   double alpha = 2.0 / (InputZlemaPeriod + 1);
+
+   if(!g_ZlemaInitialized)
+   {
+      //--- Seed avec SMA des valeurs ajustees
+      double sum = 0;
+      for(int i = 1; i <= InputZlemaPeriod; i++)
+      {
+         double c    = iClose(_Symbol, PERIOD_H1, i);
+         double cLag = iClose(_Symbol, PERIOD_H1, i + lag);
+         sum += (2.0 * c - cLag);
+      }
+      g_Zlema[0] = sum / InputZlemaPeriod;
+      g_Zlema[1] = g_Zlema[0];
+      g_Zlema[2] = g_Zlema[0];
+      g_ZlemaCount = 1;
+      g_ZlemaInitialized = true;
+      Print(">>> ZLEMA initialise | Seed=", NormalizeDouble(g_Zlema[0], 2),
+            " | Period=", InputZlemaPeriod, " | Lag=", lag,
+            " | SlopeMin=$", InputZlemaSlopeMin);
       return;
    }
 
-   //=== ETAPE 4: FILTRE BOUGIE IMPULSION ===
-   double open1  = iOpen(_Symbol, PERIOD_M15, 1);
-   double close1 = iClose(_Symbol, PERIOD_M15, 1);
-   double candleBody = MathAbs(close1 - open1) / _Point;
+   //--- Shift: [2] = ancien [1], [1] = ancien [0]
+   g_Zlema[2] = g_Zlema[1];
+   g_Zlema[1] = g_Zlema[0];
 
-   if(candleBody < MinCandleSizePoints)
+   //--- Update normal
+   double close0   = iClose(_Symbol, PERIOD_H1, 1);
+   double closeLag = iClose(_Symbol, PERIOD_H1, 1 + lag);
+   double adjustedClose = 2.0 * close0 - closeLag;
+
+   g_Zlema[0] = alpha * adjustedClose + (1.0 - alpha) * g_Zlema[1];
+   if(g_ZlemaCount < 3) g_ZlemaCount++;
+}
+
+//+------------------------------------------------------------------+
+//| SIGNAL 3: ZLEMA direction + pente minimum + position prix        |
+//| Pente = progression ZLEMA sur 3 barres (en $)                    |
+//+------------------------------------------------------------------+
+int CheckZLEMA()
+{
+   UpdateZLEMA();
+
+   if(!g_ZlemaInitialized || g_ZlemaCount < 3) return 0;
+
+   double currentPrice = iClose(_Symbol, PERIOD_H1, 1);
+
+   //--- Pente sur 3 barres (en $)
+   double slope = g_Zlema[0] - g_Zlema[2];
+   double absSlope = MathAbs(slope);
+   bool zlemaRising  = (slope > 0);
+   bool zlemaFalling = (slope < 0);
+
+   //--- Verifier pente minimum
+   if(absSlope < InputZlemaSlopeMin)
    {
-      Print(">>> IGNORE | Bougie trop petite: ", NormalizeDouble(candleBody, 0), " pts < ", MinCandleSizePoints, " pts");
-      return;
+      Print(">>> ZLEMA FLAT | Pente=$", NormalizeDouble(slope, 2),
+            " < $", InputZlemaSlopeMin, " min",
+            " | ZLEMA=", NormalizeDouble(g_Zlema[0], 2),
+            " | Prix=", NormalizeDouble(currentPrice, 2));
+      return 0;
    }
 
-   //=== ETAPE 5: SIGNAUX ===
+   //--- Bullish: ZLEMA monte assez ET prix au-dessus
+   if(zlemaRising && currentPrice > g_Zlema[0])
+   {
+      Print(">>> SIGNAL ZLEMA BULLISH | Pente=+$", NormalizeDouble(slope, 2),
+            " | ZLEMA=", NormalizeDouble(g_Zlema[0], 2),
+            " | Prix=", NormalizeDouble(currentPrice, 2));
+      return +1;
+   }
 
-   //--- BUY : H1 bullish + Cross UP + RSI > 50 + ADX > 25 + Grosse bougie
-   if(h1Bullish && crossUp && rsiVal > InputRsiLevel)
+   //--- Bearish: ZLEMA descend assez ET prix en-dessous
+   if(zlemaFalling && currentPrice < g_Zlema[0])
    {
-      Print(">>> BUY SIGNAL | H1: Prix>EMA", InputH1EmaPeriod,
-            " | Cross UP | RSI=", NormalizeDouble(rsiVal, 1),
-            " | ADX=", NormalizeDouble(adxVal, 1),
-            " | Bougie=", NormalizeDouble(candleBody, 0), "pts");
-      ExecuteTrade(ORDER_TYPE_BUY, atrVal);
+      Print(">>> SIGNAL ZLEMA BEARISH | Pente=$", NormalizeDouble(slope, 2),
+            " | ZLEMA=", NormalizeDouble(g_Zlema[0], 2),
+            " | Prix=", NormalizeDouble(currentPrice, 2));
+      return -1;
    }
-   //--- SELL : H1 bearish + Cross DOWN + RSI < 50 + ADX > 25 + Grosse bougie
-   else if(h1Bearish && crossDown && rsiVal < InputRsiLevel)
-   {
-      Print(">>> SELL SIGNAL | H1: Prix<EMA", InputH1EmaPeriod,
-            " | Cross DOWN | RSI=", NormalizeDouble(rsiVal, 1),
-            " | ADX=", NormalizeDouble(adxVal, 1),
-            " | Bougie=", NormalizeDouble(candleBody, 0), "pts");
-      ExecuteTrade(ORDER_TYPE_SELL, atrVal);
-   }
-   //--- Bloque par H1
-   else if(crossUp && rsiVal > InputRsiLevel && !h1Bullish)
-   {
-      Print(">>> BUY BLOQUE | H1 bearish (Prix < EMA200 H1)");
-   }
-   else if(crossDown && rsiVal < InputRsiLevel && !h1Bearish)
-   {
-      Print(">>> SELL BLOQUE | H1 bullish (Prix > EMA200 H1)");
-   }
+
+   Print(">>> ZLEMA NEUTRAL | Pente=$", NormalizeDouble(slope, 2),
+         " | ZLEMA=", NormalizeDouble(g_Zlema[0], 2),
+         " | Prix=", NormalizeDouble(currentPrice, 2));
+   return 0;
 }
 
 //+------------------------------------------------------------------+
 //| EXECUTION DU TRADE                                                |
 //+------------------------------------------------------------------+
-void ExecuteTrade(ENUM_ORDER_TYPE type, double atrValue)
+void ExecuteTrade(ENUM_ORDER_TYPE type, double atrValue, int score, string signals)
 {
    double price, sl, tp;
    double slDistance = atrValue * InputAtrMultSL;
+   double tpDistance = slDistance * InputRiskReward;
 
    if(type == ORDER_TYPE_BUY)
    {
       price = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
       sl    = price - slDistance;
-      tp    = price + (slDistance * InputRewardRatio);
+      tp    = price + tpDistance;
    }
    else
    {
       price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
       sl    = price + slDistance;
-      tp    = price - (slDistance * InputRewardRatio);
+      tp    = price - tpDistance;
    }
 
    price = NormalizeDouble(price, _Digits);
@@ -298,15 +562,18 @@ void ExecuteTrade(ENUM_ORDER_TYPE type, double atrValue)
 
    bool result;
    if(type == ORDER_TYPE_BUY)
-      result = trade.Buy(lotSize, _Symbol, price, sl, tp, "DEDALE Buy");
+      result = trade.Buy(lotSize, _Symbol, price, sl, tp, "DEDALE V16 Buy");
    else
-      result = trade.Sell(lotSize, _Symbol, price, sl, tp, "DEDALE Sell");
+      result = trade.Sell(lotSize, _Symbol, price, sl, tp, "DEDALE V16 Sell");
 
    if(result)
       Print(">>> OUVERT | ", (type == ORDER_TYPE_BUY ? "BUY" : "SELL"),
+            " | Score ", score, "/3 | ", signals,
             " | Lot: ", lotSize,
-            " | SL: ", NormalizeDouble(slDistance / _Point, 0), " pts",
-            " | TP: ", NormalizeDouble(slDistance * InputRewardRatio / _Point, 0), " pts",
+            " | SL: ", NormalizeDouble(slDistance / _Point, 0), " pts (",
+            InputAtrMultSL, "xATR)",
+            " | TP: ", NormalizeDouble(tpDistance / _Point, 0), " pts (1:",
+            InputRiskReward, ")",
             " | Risk: $", InputRiskUSD);
    else
       Print(">>> ERREUR: ", trade.ResultRetcodeDescription());
