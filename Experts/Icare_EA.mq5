@@ -1,12 +1,13 @@
 //+------------------------------------------------------------------+
 //|                                                     Icare_EA.mq5 |
 //|                                                             Luca |
-//|    ICARE V1 - BOS Pullback ZLEMA (EURUSD M15)                    |
+//|    ICARE PRO V2 - Smart Money: BOS + FVG + Limit Order           |
+//|    EURUSD M15 - Institutional Flow                                |
 //+------------------------------------------------------------------+
-#property copyright "Luca - ICARE EA v1"
-#property version   "1.00"
-#property description "H4 EMA200 Filter + H1 ADX + M15 BOS/Pullback/Impulse"
-#property description "State Machine: BOS -> Pullback ZLEMA -> Impulse Candle"
+#property copyright "Luca - ICARE PRO V2"
+#property version   "2.00"
+#property description "H4 EMA200 → M15 BOS → FVG → Limit Order at 50%"
+#property description "Smart Money / Institutional Approach"
 #property description "Placer sur graphique M15 - EURUSD"
 #property strict
 
@@ -16,44 +17,41 @@
 //| INPUTS                                                            |
 //+------------------------------------------------------------------+
 input group "=== MONEY MANAGEMENT ==="
-input double   InputRiskPercent     = 1.0;      // Risque par trade (% du capital)
-input double   InputRiskReward      = 3.0;      // Ratio R:R (TP = SL x 3)
-input int      InputMagicNumber     = 222222;   // ID Unique Icare
+input double   InputRiskPercent     = 1.0;      // Risk % du capital par trade
+input double   InputRiskReward      = 3.0;      // R:R (TP = SL x 3)
+input int      InputMagicNumber     = 222222;   // Magic Number
 
 input group "=== H4 TREND FILTER ==="
-input int      InputH4EmaPeriod     = 200;      // EMA H4 (filtre directionnel)
-
-input group "=== H1 ADX FILTER ==="
-input int      InputH1AdxPeriod     = 14;       // ADX period H1
-input int      InputH1AdxThreshold  = 25;       // ADX minimum H1
+input int      InputH4EmaPeriod     = 200;      // EMA period H4 (direction)
 
 input group "=== M15 BOS ==="
-input int      InputSwingStrength   = 5;        // Force swing M15 (barres chaque cote)
-input int      InputSwingLookback   = 100;      // Lookback pour swing points
-input int      InputBosExpiry       = 20;       // Barres max attente pullback apres BOS
+input int      InputSwingStrength   = 3;        // Swing strength (barres chaque cote)
+input int      InputSwingLookback   = 50;       // Swing lookback (barres)
+input int      InputBosMaxBars      = 20;       // Max barres pour trouver FVG apres BOS
 
-input group "=== M15 ZLEMA ==="
-input int      InputZlemaPeriod     = 21;       // ZLEMA period
-input double   InputZlemaSlopeMin   = 30.0;     // Pente min ZLEMA sur 3 barres (points)
-input int      InputPullbackExpiry  = 10;       // Barres max attente impulse apres pullback
+input group "=== M15 FVG ==="
+input int      InputFvgScanBars     = 10;       // FVG scan range (barres)
+input int      InputMinFvgPts       = 10;       // Taille min FVG (points = 1 pip)
+input int      InputPendingExpiry   = 10;       // Annuler limit order apres N barres
 
-input group "=== M15 IMPULSE CANDLE ==="
-input int      InputMinBodyPts      = 30;       // Corps min bougie impulsion (points)
-
-input group "=== ATR & SL/TP ==="
-input int      InputAtrPeriod       = 14;       // ATR period M15
-input double   InputAtrMultSL       = 1.5;      // Multiplicateur ATR pour SL
+input group "=== STOP LOSS ==="
+input int      InputSlBufferPts     = 20;       // Buffer SL au-dela du swing (pts = 2 pips)
+input int      InputMinSLPts        = 50;       // SL minimum (pts = 5 pips)
 
 input group "=== BREAK-EVEN ==="
-input double   InputBeTriggerR      = 1.5;      // Break-Even a 1.5R (0=desactive)
-input int      InputBeBufferPts     = 20;       // Buffer BE (points = 2 pips)
+input double   InputBeTriggerR      = 1.5;      // BE a 1.5R (0 = desactive)
+input int      InputBeBufferPts     = 20;       // Buffer BE (pts = 2 pips)
 
 input group "=== FILTRES ==="
-input int      InputStartHour       = 8;        // Session debut (8h London)
-input int      InputEndHour         = 17;       // Session fin (17h)
+input int      InputStartHour       = 9;        // Session debut (London)
+input int      InputEndHour         = 17;       // Session fin
 input int      InputMaxDailyTrades  = 1;        // Max trades par jour
-input int      InputMaxSpread       = 15;       // Spread max (points = 1.5 pips)
+input int      InputMaxSpread       = 12;       // Spread max (pts = 1.2 pips)
 input int      InputMaxTradeHours   = 96;       // Duree max position (heures)
+
+input group "=== NEWS FILTER ==="
+input bool     InputNewsFilter      = true;     // Filtre news (live only, off en backtest)
+input int      InputNewsMinutes     = 30;       // Buffer autour des news (minutes)
 
 //+------------------------------------------------------------------+
 //| STRUCTURES & ENUMS                                                |
@@ -64,27 +62,26 @@ struct SwingPoint
    int      barIndex;
 };
 
+struct FVGZone
+{
+   double   top;         // borne haute du gap
+   double   bottom;      // borne basse du gap
+   double   entry;       // niveau 50% (prix du limit order)
+   int      direction;   // +1 bullish, -1 bearish
+};
+
 enum TradeState
 {
-   STATE_IDLE,              // Attente BOS
-   STATE_BOS_DETECTED,      // BOS trouve, attente pullback ZLEMA
-   STATE_PULLBACK_DONE      // Pullback fait, attente impulse candle
+   STATE_IDLE,            // Attente BOS
+   STATE_BOS_DETECTED,    // BOS trouve, scan FVG en cours
+   STATE_ORDER_PLACED     // Limit order actif
 };
 
 //+------------------------------------------------------------------+
 //| VARIABLES GLOBALES                                                |
 //+------------------------------------------------------------------+
 CTrade         trade;
-
-//--- Indicator handles
 int            handleH4Ema;
-int            handleH1Adx;
-int            handleM15Atr;
-
-//--- ZLEMA state (3 dernieres valeurs pour calcul de pente)
-double         g_Zlema[3];           // [0]=actuel, [1]=prev, [2]=prev-prev
-int            g_ZlemaCount;
-bool           g_ZlemaInitialized;
 
 //--- Swing point cache
 SwingPoint     g_SwingHighs[];
@@ -93,23 +90,24 @@ datetime       g_LastSwingScan;
 
 //--- State machine
 TradeState     g_State;
-int            g_StateDirection;     // +1 (buy) ou -1 (sell)
-int            g_StateBars;          // Barres ecoulees dans l'etat courant
-double         g_BosLevel;           // Prix du BOS (pour logs)
+int            g_StateDirection;     // +1 buy, -1 sell
+double         g_BosLevel;           // Prix du BOS
+double         g_SwingSL;            // SL structurel (swing)
+int            g_StateBars;          // Barres dans l'etat courant
+
+//--- Pending order tracking
+ulong          g_PendingTicket;      // Ticket du limit order
+int            g_PendingBars;        // Barres depuis placement
 
 //+------------------------------------------------------------------+
 //| INITIALISATION                                                    |
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   handleH4Ema  = iMA(_Symbol, PERIOD_H4, InputH4EmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
-   handleH1Adx  = iADX(_Symbol, PERIOD_H1, InputH1AdxPeriod);
-   handleM15Atr = iATR(_Symbol, PERIOD_M15, InputAtrPeriod);
-
-   if(handleH4Ema == INVALID_HANDLE || handleH1Adx == INVALID_HANDLE ||
-      handleM15Atr == INVALID_HANDLE)
+   handleH4Ema = iMA(_Symbol, PERIOD_H4, InputH4EmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
+   if(handleH4Ema == INVALID_HANDLE)
    {
-      Print("ERREUR: Impossible de creer les indicateurs.");
+      Print("ERREUR: Impossible de creer indicateur H4 EMA");
       return(INIT_FAILED);
    }
 
@@ -117,24 +115,33 @@ int OnInit()
    trade.SetDeviationInPoints(15);
    trade.SetTypeFilling(ORDER_FILLING_IOC);
 
-   //--- Init ZLEMA
-   g_Zlema[0] = 0; g_Zlema[1] = 0; g_Zlema[2] = 0;
-   g_ZlemaCount = 0;
-   g_ZlemaInitialized = false;
+   //--- Init state
    g_LastSwingScan = 0;
+   ResetState();
+   g_PendingTicket = 0;
+   g_PendingBars = 0;
 
-   //--- Init State Machine
-   g_State = STATE_IDLE;
-   g_StateDirection = 0;
-   g_StateBars = 0;
-   g_BosLevel = 0;
+   //--- Detect existing pending order (EA restart recovery)
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = OrderGetTicket(i);
+      if(OrderGetInteger(ORDER_MAGIC) == InputMagicNumber &&
+         OrderGetString(ORDER_SYMBOL) == _Symbol)
+      {
+         g_PendingTicket = ticket;
+         g_State = STATE_ORDER_PLACED;
+         Print(">>> RECOVERY | Pending order #", ticket, " detected");
+         break;
+      }
+   }
 
-   Print(">> ICARE V1 | EURUSD M15 | Session ", InputStartHour, "h-", InputEndHour, "h",
-         " | Filter: H4 EMA", InputH4EmaPeriod, " + H1 ADX>", InputH1AdxThreshold,
-         " | BOS(sw", InputSwingStrength, ") -> ZLEMA(", InputZlemaPeriod, ") -> Impulse",
-         " | SL=", InputAtrMultSL, "xATR | RR=1:", InputRiskReward,
+   Print(">> ICARE PRO V2 | EURUSD M15 | Session ", InputStartHour, "h-", InputEndHour, "h",
+         " | H4 EMA", InputH4EmaPeriod,
+         " | BOS(sw", InputSwingStrength, ") -> FVG -> Limit@50%",
+         " | SL=Structural(min", InputMinSLPts, "pts) | RR=1:", InputRiskReward,
          " | BE@", InputBeTriggerR, "R",
-         " | Risk=", InputRiskPercent, "%");
+         " | Risk=", InputRiskPercent, "%",
+         " | News=", (InputNewsFilter ? "ON" : "OFF"));
    return(INIT_SUCCEEDED);
 }
 
@@ -143,9 +150,14 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
-   if(handleH4Ema != INVALID_HANDLE)  IndicatorRelease(handleH4Ema);
-   if(handleH1Adx != INVALID_HANDLE)  IndicatorRelease(handleH1Adx);
-   if(handleM15Atr != INVALID_HANDLE) IndicatorRelease(handleM15Atr);
+   if(handleH4Ema != INVALID_HANDLE) IndicatorRelease(handleH4Ema);
+
+   //--- Cancel pending order on deinit
+   if(g_PendingTicket > 0)
+   {
+      trade.OrderDelete(g_PendingTicket);
+      Print(">>> DEINIT | Pending order #", g_PendingTicket, " cancelled");
+   }
 }
 
 //+------------------------------------------------------------------+
@@ -154,6 +166,7 @@ void OnDeinit(const int reason)
 void OnTick()
 {
    ManagePositions();
+   ManagePendingOrders();
    EntryLogic();
 }
 
@@ -167,16 +180,16 @@ void ManagePositions()
       if(PositionGetSymbol(i) != _Symbol) continue;
       if(PositionGetInteger(POSITION_MAGIC) != InputMagicNumber) continue;
 
-      ulong  ticket   = PositionGetInteger(POSITION_TICKET);
+      ulong    ticket   = PositionGetInteger(POSITION_TICKET);
       datetime openTime = (datetime)PositionGetInteger(POSITION_TIME);
-      double elapsed   = (double)(TimeCurrent() - openTime) / 3600.0;
+      double   elapsed  = (double)(TimeCurrent() - openTime) / 3600.0;
 
       //--- Timeout
       if(elapsed >= InputMaxTradeHours)
       {
          trade.PositionClose(ticket);
-         Print(">>> FERME (TIMEOUT) | Ticket #", ticket,
-               " | Duree=", NormalizeDouble(elapsed, 1), "h >= ", InputMaxTradeHours, "h max");
+         Print(">>> TIMEOUT | #", ticket, " | ", NormalizeDouble(elapsed, 1),
+               "h >= ", InputMaxTradeHours, "h");
          continue;
       }
 
@@ -188,13 +201,15 @@ void ManagePositions()
          double tp        = PositionGetDouble(POSITION_TP);
          long   posType   = PositionGetInteger(POSITION_TYPE);
 
-         double slDistance = MathAbs(openPrice - currentSL);
+         double slDistance  = MathAbs(openPrice - currentSL);
          double triggerDist = slDistance * InputBeTriggerR;
-         double beLevel   = (posType == POSITION_TYPE_BUY)
-                            ? openPrice + InputBeBufferPts * _Point
-                            : openPrice - InputBeBufferPts * _Point;
+         double beLevel     = (posType == POSITION_TYPE_BUY)
+                              ? openPrice + InputBeBufferPts * _Point
+                              : openPrice - InputBeBufferPts * _Point;
 
-         bool alreadyBE = (posType == POSITION_TYPE_BUY) ? (currentSL >= openPrice) : (currentSL <= openPrice);
+         bool alreadyBE = (posType == POSITION_TYPE_BUY)
+                          ? (currentSL >= openPrice)
+                          : (currentSL <= openPrice);
 
          if(!alreadyBE && slDistance > 0)
          {
@@ -210,7 +225,7 @@ void ManagePositions()
             if(triggered)
             {
                trade.PositionModify(ticket, beLevel, tp);
-               Print(">>> BREAK-EVEN | Ticket #", ticket,
+               Print(">>> BREAK-EVEN | #", ticket,
                      " | Entry=", NormalizeDouble(openPrice, _Digits),
                      " | NewSL=", NormalizeDouble(beLevel, _Digits),
                      " | Trigger=", InputBeTriggerR, "R");
@@ -221,35 +236,97 @@ void ManagePositions()
 }
 
 //+------------------------------------------------------------------+
-//| LOGIQUE D'ENTREE - State Machine                                  |
+//| GESTION DES ORDRES PENDING - Fill check + Expiry                  |
+//+------------------------------------------------------------------+
+void ManagePendingOrders()
+{
+   if(g_PendingTicket == 0) return;
+
+   //--- Check if pending order still exists
+   bool orderExists = false;
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = OrderGetTicket(i);
+      if(ticket == g_PendingTicket)
+      {
+         orderExists = true;
+         break;
+      }
+   }
+
+   if(!orderExists)
+   {
+      //--- Order disappeared: filled or cancelled externally
+      if(CountPositions() > 0)
+         Print(">>> LIMIT FILLED | #", g_PendingTicket, " -> Position ouverte");
+      else
+         Print(">>> LIMIT CANCELLED | #", g_PendingTicket);
+
+      g_PendingTicket = 0;
+      g_PendingBars = 0;
+      ResetState();
+      return;
+   }
+
+   //--- Bar-based expiry check (new bar only)
+   static datetime lastCheckBar = 0;
+   datetime currentBar = iTime(_Symbol, PERIOD_M15, 0);
+   if(currentBar != lastCheckBar)
+   {
+      lastCheckBar = currentBar;
+      g_PendingBars++;
+
+      if(g_PendingBars >= InputPendingExpiry)
+      {
+         trade.OrderDelete(g_PendingTicket);
+         Print(">>> PENDING EXPIRED | #", g_PendingTicket,
+               " | ", g_PendingBars, " barres sans fill -> annule");
+         g_PendingTicket = 0;
+         g_PendingBars = 0;
+         ResetState();
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| LOGIQUE D'ENTREE - Filtres + State Machine                        |
 //+------------------------------------------------------------------+
 void EntryLogic()
 {
+   //--- Skip if position open or pending order active
    if(CountPositions() > 0) return;
+   if(g_State == STATE_ORDER_PLACED) return;
    if(CountTodayTrades() >= InputMaxDailyTrades) return;
 
-   //--- Filtre horaire
+   //--- Time filter
    MqlDateTime dt;
    TimeCurrent(dt);
    if(dt.hour < InputStartHour || dt.hour >= InputEndHour) return;
 
-   //--- Filtre spread
+   //--- Spread filter
    long spread = SymbolInfoInteger(_Symbol, SYMBOL_SPREAD);
    if(spread > InputMaxSpread) return;
 
-   //--- Nouvelle bougie M15 seulement
+   //--- New M15 bar only
    static datetime lastBar = 0;
    datetime currentBar = iTime(_Symbol, PERIOD_M15, 0);
    if(currentBar == lastBar) return;
    lastBar = currentBar;
 
-   //--- Incrementer compteur barres dans l'etat
-   g_StateBars++;
+   //--- Increment state bars
+   if(g_State != STATE_IDLE) g_StateBars++;
 
-   //--- Update ZLEMA a chaque barre M15
-   UpdateZLEMA();
+   //--- News filter (live only, skip in tester)
+   if(InputNewsFilter && !MQLInfoInteger(MQL_TESTER) && !MQLInfoInteger(MQL_OPTIMIZATION))
+   {
+      if(IsNearNews())
+      {
+         Print(">>> NEWS FILTER | High impact news within ", InputNewsMinutes, " min");
+         return;
+      }
+   }
 
-   //=== FILTRE 1: H4 EMA200 (direction) ===
+   //=== H4 EMA200 Direction ===
    double h4Ema[];
    ArraySetAsSeries(h4Ema, true);
    if(CopyBuffer(handleH4Ema, 0, 0, 2, h4Ema) < 2) return;
@@ -260,25 +337,13 @@ void EntryLogic()
    else if(m15Close < h4Ema[1]) direction = -1;
    else return;
 
-   //--- Si direction H4 change, reset state machine
+   //--- If H4 direction changed, reset state machine
    if(g_State != STATE_IDLE && direction != g_StateDirection)
    {
-      Print(">>> STATE RESET | Direction H4 changee de ",
-            (g_StateDirection > 0 ? "BULL" : "BEAR"), " a ",
+      Print(">>> RESET | H4 direction changed: ",
+            (g_StateDirection > 0 ? "BULL" : "BEAR"), " -> ",
             (direction > 0 ? "BULL" : "BEAR"));
       ResetState();
-   }
-
-   //=== FILTRE 2: H1 ADX > 25 ===
-   double adxBuf[];
-   ArraySetAsSeries(adxBuf, true);
-   if(CopyBuffer(handleH1Adx, 0, 0, 2, adxBuf) < 2) return;
-   double adxVal = adxBuf[1];
-
-   if(adxVal < InputH1AdxThreshold)
-   {
-      Print(">>> NO TRADE | ADX H1=", NormalizeDouble(adxVal, 1), " < ", InputH1AdxThreshold);
-      return;
    }
 
    //=== STATE MACHINE ===
@@ -289,191 +354,129 @@ void EntryLogic()
          break;
 
       case STATE_BOS_DETECTED:
-         ProcessStateBos();
+         ProcessStateBosDetected();
          break;
 
-      case STATE_PULLBACK_DONE:
-         ProcessStatePullback();
+      case STATE_ORDER_PLACED:
+         // Managed by ManagePendingOrders()
          break;
    }
 }
 
 //+------------------------------------------------------------------+
-//| STATE IDLE - Cherche BOS M15                                      |
+//| STATE IDLE - Detect BOS on M15                                    |
 //+------------------------------------------------------------------+
 void ProcessStateIdle(int direction)
 {
-   int bosSignal = CheckBOS();
-
-   if(bosSignal == direction)
-   {
-      g_State = STATE_BOS_DETECTED;
-      g_StateDirection = direction;
-      g_StateBars = 0;
-      Print(">>> ETAT -> BOS_DETECTED | Dir=", (direction > 0 ? "BUY" : "SELL"),
-            " | BOS@", NormalizeDouble(g_BosLevel, _Digits));
-   }
-}
-
-//+------------------------------------------------------------------+
-//| STATE BOS_DETECTED - Attend pullback vers ZLEMA                   |
-//+------------------------------------------------------------------+
-void ProcessStateBos()
-{
-   //--- Expiry check
-   if(g_StateBars > InputBosExpiry)
-   {
-      Print(">>> STATE EXPIRE | BOS expire apres ", g_StateBars, " barres > ", InputBosExpiry);
-      ResetState();
-      return;
-   }
-
-   if(!g_ZlemaInitialized || g_ZlemaCount < 3) return;
-
-   double low1  = iLow(_Symbol, PERIOD_M15, 1);
-   double high1 = iHigh(_Symbol, PERIOD_M15, 1);
-
-   bool pullback = false;
-
-   //--- BUY: prix descend toucher ZLEMA (meche basse <= ZLEMA)
-   if(g_StateDirection == +1 && low1 <= g_Zlema[0])
-      pullback = true;
-
-   //--- SELL: prix monte toucher ZLEMA (meche haute >= ZLEMA)
-   if(g_StateDirection == -1 && high1 >= g_Zlema[0])
-      pullback = true;
-
-   if(pullback)
-   {
-      g_State = STATE_PULLBACK_DONE;
-      g_StateBars = 0;
-      Print(">>> ETAT -> PULLBACK_DONE | Dir=", (g_StateDirection > 0 ? "BUY" : "SELL"),
-            " | ZLEMA=", NormalizeDouble(g_Zlema[0], _Digits),
-            " | Low=", NormalizeDouble(low1, _Digits),
-            " | High=", NormalizeDouble(high1, _Digits));
-   }
-}
-
-//+------------------------------------------------------------------+
-//| STATE PULLBACK_DONE - Attend bougie d'impulsion                   |
-//+------------------------------------------------------------------+
-void ProcessStatePullback()
-{
-   //--- Expiry check
-   if(g_StateBars > InputPullbackExpiry)
-   {
-      Print(">>> STATE EXPIRE | Pullback expire apres ", g_StateBars, " barres > ", InputPullbackExpiry);
-      ResetState();
-      return;
-   }
-
-   if(!g_ZlemaInitialized || g_ZlemaCount < 3) return;
-
-   double open1  = iOpen(_Symbol, PERIOD_M15, 1);
-   double close1 = iClose(_Symbol, PERIOD_M15, 1);
-   double body   = MathAbs(close1 - open1) / _Point;
-
-   //--- Pente ZLEMA (en points)
-   double slope = (g_Zlema[0] - g_Zlema[2]) / _Point;
-
-   bool impulse = false;
-
-   //--- BUY: close > ZLEMA, corps > min, pente ZLEMA positive
-   if(g_StateDirection == +1 &&
-      close1 > g_Zlema[0] &&
-      close1 > open1 &&
-      body >= InputMinBodyPts &&
-      slope >= InputZlemaSlopeMin)
-   {
-      impulse = true;
-   }
-
-   //--- SELL: close < ZLEMA, corps > min, pente ZLEMA negative
-   if(g_StateDirection == -1 &&
-      close1 < g_Zlema[0] &&
-      close1 < open1 &&
-      body >= InputMinBodyPts &&
-      slope <= -InputZlemaSlopeMin)
-   {
-      impulse = true;
-   }
-
-   if(impulse)
-   {
-      Print(">>> IMPULSE CANDLE! | Dir=", (g_StateDirection > 0 ? "BUY" : "SELL"),
-            " | Body=", NormalizeDouble(body, 0), " pts",
-            " | Slope=", NormalizeDouble(slope, 1), " pts",
-            " | Close=", NormalizeDouble(close1, _Digits),
-            " | ZLEMA=", NormalizeDouble(g_Zlema[0], _Digits));
-
-      //--- Lire ATR M15
-      double atrBuf[];
-      ArraySetAsSeries(atrBuf, true);
-      if(CopyBuffer(handleM15Atr, 0, 0, 2, atrBuf) < 2) { ResetState(); return; }
-      double atrVal = atrBuf[1];
-      if(atrVal <= 0) { ResetState(); return; }
-
-      if(g_StateDirection == +1)
-         ExecuteTrade(ORDER_TYPE_BUY, atrVal);
-      else
-         ExecuteTrade(ORDER_TYPE_SELL, atrVal);
-
-      ResetState();
-   }
-}
-
-//+------------------------------------------------------------------+
-//| RESET STATE MACHINE                                               |
-//+------------------------------------------------------------------+
-void ResetState()
-{
-   g_State = STATE_IDLE;
-   g_StateDirection = 0;
-   g_StateBars = 0;
-   g_BosLevel = 0;
-}
-
-//+------------------------------------------------------------------+
-//| BOS DETECTION - Break of Structure M15                            |
-//+------------------------------------------------------------------+
-int CheckBOS()
-{
    UpdateSwingPoints();
 
-   if(ArraySize(g_SwingHighs) < 1 || ArraySize(g_SwingLows) < 1)
+   int bosSignal = CheckBOS(direction);
+   if(bosSignal == 0) return;
+
+   //--- BOS found!
+   g_State = STATE_BOS_DETECTED;
+   g_StateDirection = direction;
+   g_StateBars = 0;
+
+   //--- Save structural SL (swing opposite to BOS direction)
+   if(direction == +1 && ArraySize(g_SwingLows) > 0)
+      g_SwingSL = g_SwingLows[0].price - InputSlBufferPts * _Point;
+   else if(direction == -1 && ArraySize(g_SwingHighs) > 0)
+      g_SwingSL = g_SwingHighs[0].price + InputSlBufferPts * _Point;
+   else
    {
-      Print(">>> BOS | Pas assez de swing points (H=", ArraySize(g_SwingHighs),
-            " L=", ArraySize(g_SwingLows), ")");
-      return 0;
+      Print(">>> BOS SKIP | No swing point for structural SL");
+      ResetState();
+      return;
    }
+
+   Print(">>> BOS DETECTED | Dir=", (direction > 0 ? "BUY" : "SELL"),
+         " | BOS@", NormalizeDouble(g_BosLevel, _Digits),
+         " | Structural SL@", NormalizeDouble(g_SwingSL, _Digits));
+
+   //--- Immediately try to find FVG on same bar
+   ProcessStateBosDetected();
+}
+
+//+------------------------------------------------------------------+
+//| STATE BOS_DETECTED - Scan for FVG                                 |
+//+------------------------------------------------------------------+
+void ProcessStateBosDetected()
+{
+   //--- Expiry check
+   if(g_StateBars > InputBosMaxBars)
+   {
+      Print(">>> BOS EXPIRED | No FVG found in ", g_StateBars,
+            " barres > ", InputBosMaxBars);
+      ResetState();
+      return;
+   }
+
+   //--- Check if structural SL has been swept (invalidates setup)
+   double lastLow  = iLow(_Symbol, PERIOD_M15, 1);
+   double lastHigh = iHigh(_Symbol, PERIOD_M15, 1);
+   if(g_StateDirection == +1 && lastLow < g_SwingSL)
+   {
+      Print(">>> SETUP INVALID | Price swept below structural SL");
+      ResetState();
+      return;
+   }
+   if(g_StateDirection == -1 && lastHigh > g_SwingSL)
+   {
+      Print(">>> SETUP INVALID | Price swept above structural SL");
+      ResetState();
+      return;
+   }
+
+   //--- Scan for FVG
+   FVGZone fvg;
+   if(DetectFVG(g_StateDirection, fvg))
+      PlaceLimitOrder(fvg);
+}
+
+//+------------------------------------------------------------------+
+//| CHECK BOS - Break of Structure M15                                |
+//+------------------------------------------------------------------+
+int CheckBOS(int targetDirection)
+{
+   if(ArraySize(g_SwingHighs) < 1 || ArraySize(g_SwingLows) < 1)
+      return 0;
 
    double currentClose = iClose(_Symbol, PERIOD_M15, 1);
-   double lastSwingHigh = g_SwingHighs[0].price;
-   double lastSwingLow  = g_SwingLows[0].price;
 
-   //--- BOS BULLISH: close casse le dernier swing high
-   if(currentClose > lastSwingHigh)
+   //--- Bullish BOS: close casse dernier swing high
+   if(targetDirection == +1)
    {
-      g_BosLevel = lastSwingHigh;
-      Print(">>> BOS BULLISH | Close ", NormalizeDouble(currentClose, _Digits),
-            " > SwingHigh ", NormalizeDouble(lastSwingHigh, _Digits));
-      return +1;
+      double lastSwingHigh = g_SwingHighs[0].price;
+      if(currentClose > lastSwingHigh)
+      {
+         g_BosLevel = lastSwingHigh;
+         Print(">>> BOS BULLISH | Close ", NormalizeDouble(currentClose, _Digits),
+               " > SwingHigh ", NormalizeDouble(lastSwingHigh, _Digits),
+               " (bar ", g_SwingHighs[0].barIndex, ")");
+         return +1;
+      }
    }
 
-   //--- BOS BEARISH: close casse le dernier swing low
-   if(currentClose < lastSwingLow)
+   //--- Bearish BOS: close casse dernier swing low
+   if(targetDirection == -1)
    {
-      g_BosLevel = lastSwingLow;
-      Print(">>> BOS BEARISH | Close ", NormalizeDouble(currentClose, _Digits),
-            " < SwingLow ", NormalizeDouble(lastSwingLow, _Digits));
-      return -1;
+      double lastSwingLow = g_SwingLows[0].price;
+      if(currentClose < lastSwingLow)
+      {
+         g_BosLevel = lastSwingLow;
+         Print(">>> BOS BEARISH | Close ", NormalizeDouble(currentClose, _Digits),
+               " < SwingLow ", NormalizeDouble(lastSwingLow, _Digits),
+               " (bar ", g_SwingLows[0].barIndex, ")");
+         return -1;
+      }
    }
 
    return 0;
 }
 
 //+------------------------------------------------------------------+
-//| SWING POINTS DETECTION M15 (cached per M15 bar)                   |
+//| UPDATE SWING POINTS M15 (cached per bar)                          |
 //+------------------------------------------------------------------+
 void UpdateSwingPoints()
 {
@@ -493,7 +496,8 @@ void UpdateSwingPoints()
       bool isSwingHigh = true;
       for(int j = 1; j <= InputSwingStrength; j++)
       {
-         if(iHigh(_Symbol, PERIOD_M15, i - j) >= high || iHigh(_Symbol, PERIOD_M15, i + j) >= high)
+         if(iHigh(_Symbol, PERIOD_M15, i - j) >= high ||
+            iHigh(_Symbol, PERIOD_M15, i + j) >= high)
          {
             isSwingHigh = false;
             break;
@@ -512,7 +516,8 @@ void UpdateSwingPoints()
       bool isSwingLow = true;
       for(int j = 1; j <= InputSwingStrength; j++)
       {
-         if(iLow(_Symbol, PERIOD_M15, i - j) <= low || iLow(_Symbol, PERIOD_M15, i + j) <= low)
+         if(iLow(_Symbol, PERIOD_M15, i - j) <= low ||
+            iLow(_Symbol, PERIOD_M15, i + j) <= low)
          {
             isSwingLow = false;
             break;
@@ -529,91 +534,141 @@ void UpdateSwingPoints()
 }
 
 //+------------------------------------------------------------------+
-//| ZLEMA UPDATE M15 (manual calculation)                             |
-//| ZLEMA = EMA( 2*Close - Close[lag], period )                      |
-//| lag = (period - 1) / 2                                           |
+//| DETECT FVG - Fair Value Gap on M15                                |
+//| Bullish FVG: Low[i] > High[i+2] (gap above)                      |
+//| Bearish FVG: High[i] < Low[i+2] (gap below)                      |
 //+------------------------------------------------------------------+
-void UpdateZLEMA()
+bool DetectFVG(int direction, FVGZone &fvg)
 {
-   int lag = (InputZlemaPeriod - 1) / 2;
-   double alpha = 2.0 / (InputZlemaPeriod + 1);
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   long stopsLevel = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
+   double minDist  = stopsLevel * _Point;
 
-   if(!g_ZlemaInitialized)
+   for(int i = 1; i <= InputFvgScanBars; i++)
    {
-      double sum = 0;
-      for(int i = 1; i <= InputZlemaPeriod; i++)
+      double high_i  = iHigh(_Symbol, PERIOD_M15, i);
+      double low_i   = iLow(_Symbol, PERIOD_M15, i);
+      double high_i2 = iHigh(_Symbol, PERIOD_M15, i + 2);
+      double low_i2  = iLow(_Symbol, PERIOD_M15, i + 2);
+
+      if(direction == +1)
       {
-         double c    = iClose(_Symbol, PERIOD_M15, i);
-         double cLag = iClose(_Symbol, PERIOD_M15, i + lag);
-         sum += (2.0 * c - cLag);
+         //--- Bullish FVG: Low[i] > High[i+2]
+         if(low_i > high_i2)
+         {
+            double gapSize = (low_i - high_i2) / _Point;
+            if(gapSize < InputMinFvgPts) continue;
+
+            fvg.top       = low_i;
+            fvg.bottom    = high_i2;
+            fvg.entry     = NormalizeDouble((low_i + high_i2) / 2.0, _Digits);
+            fvg.direction = +1;
+
+            //--- Validate: entry must be below current ask (valid buy limit)
+            if(fvg.entry >= ask - minDist) continue;
+
+            //--- Validate: SL must be below entry
+            if(g_SwingSL >= fvg.entry) continue;
+
+            //--- Validate: minimum SL distance
+            double slDist = (fvg.entry - g_SwingSL) / _Point;
+            if(slDist < InputMinSLPts) continue;
+
+            Print(">>> FVG BULLISH | Top=", NormalizeDouble(fvg.top, _Digits),
+                  " | Bottom=", NormalizeDouble(fvg.bottom, _Digits),
+                  " | Entry@50%=", NormalizeDouble(fvg.entry, _Digits),
+                  " | Gap=", NormalizeDouble(gapSize, 0), " pts | Bar=", i);
+            return true;
+         }
       }
-      g_Zlema[0] = sum / InputZlemaPeriod;
-      g_Zlema[1] = g_Zlema[0];
-      g_Zlema[2] = g_Zlema[0];
-      g_ZlemaCount = 1;
-      g_ZlemaInitialized = true;
-      Print(">>> ZLEMA initialise | Seed=", NormalizeDouble(g_Zlema[0], _Digits),
-            " | Period=", InputZlemaPeriod, " | Lag=", lag,
-            " | SlopeMin=", InputZlemaSlopeMin, " pts");
-      return;
+      else if(direction == -1)
+      {
+         //--- Bearish FVG: High[i] < Low[i+2]
+         if(high_i < low_i2)
+         {
+            double gapSize = (low_i2 - high_i) / _Point;
+            if(gapSize < InputMinFvgPts) continue;
+
+            fvg.top       = low_i2;
+            fvg.bottom    = high_i;
+            fvg.entry     = NormalizeDouble((low_i2 + high_i) / 2.0, _Digits);
+            fvg.direction = -1;
+
+            //--- Validate: entry must be above current bid (valid sell limit)
+            if(fvg.entry <= bid + minDist) continue;
+
+            //--- Validate: SL must be above entry
+            if(g_SwingSL <= fvg.entry) continue;
+
+            //--- Validate: minimum SL distance
+            double slDist = (g_SwingSL - fvg.entry) / _Point;
+            if(slDist < InputMinSLPts) continue;
+
+            Print(">>> FVG BEARISH | Top=", NormalizeDouble(fvg.top, _Digits),
+                  " | Bottom=", NormalizeDouble(fvg.bottom, _Digits),
+                  " | Entry@50%=", NormalizeDouble(fvg.entry, _Digits),
+                  " | Gap=", NormalizeDouble(gapSize, 0), " pts | Bar=", i);
+            return true;
+         }
+      }
    }
-
-   g_Zlema[2] = g_Zlema[1];
-   g_Zlema[1] = g_Zlema[0];
-
-   double close0   = iClose(_Symbol, PERIOD_M15, 1);
-   double closeLag = iClose(_Symbol, PERIOD_M15, 1 + lag);
-   double adjustedClose = 2.0 * close0 - closeLag;
-
-   g_Zlema[0] = alpha * adjustedClose + (1.0 - alpha) * g_Zlema[1];
-   if(g_ZlemaCount < 3) g_ZlemaCount++;
+   return false;
 }
 
 //+------------------------------------------------------------------+
-//| EXECUTION DU TRADE                                                |
+//| PLACE LIMIT ORDER at FVG 50%                                      |
 //+------------------------------------------------------------------+
-void ExecuteTrade(ENUM_ORDER_TYPE type, double atrValue)
+void PlaceLimitOrder(FVGZone &fvg)
 {
-   double price, sl, tp;
-   double slDistance = atrValue * InputAtrMultSL;
-   double tpDistance = slDistance * InputRiskReward;
+   double entry = fvg.entry;
+   double sl    = NormalizeDouble(g_SwingSL, _Digits);
 
-   if(type == ORDER_TYPE_BUY)
-   {
-      price = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
-      sl    = price - slDistance;
-      tp    = price + tpDistance;
-   }
+   //--- Calculate distances
+   double slDist = MathAbs(entry - sl);
+   double tpDist = slDist * InputRiskReward;
+
+   //--- Calculate TP
+   double tp;
+   if(fvg.direction == +1)
+      tp = entry + tpDist;
    else
-   {
-      price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-      sl    = price + slDistance;
-      tp    = price - tpDistance;
-   }
+      tp = entry - tpDist;
+   tp = NormalizeDouble(tp, _Digits);
 
-   price = NormalizeDouble(price, _Digits);
-   sl    = NormalizeDouble(sl, _Digits);
-   tp    = NormalizeDouble(tp, _Digits);
+   //--- Calculate lot size
+   double lotSize = CalculateLotSize(slDist);
 
-   double lotSize = CalculateLotSize(slDistance);
-
-   bool result;
-   if(type == ORDER_TYPE_BUY)
-      result = trade.Buy(lotSize, _Symbol, price, sl, tp, "ICARE V1 Buy");
+   //--- Place limit order
+   bool result = false;
+   if(fvg.direction == +1)
+      result = trade.BuyLimit(lotSize, entry, _Symbol, sl, tp,
+                              ORDER_TIME_GTC, 0, "ICARE PRO Buy");
    else
-      result = trade.Sell(lotSize, _Symbol, price, sl, tp, "ICARE V1 Sell");
+      result = trade.SellLimit(lotSize, entry, _Symbol, sl, tp,
+                               ORDER_TIME_GTC, 0, "ICARE PRO Sell");
 
    if(result)
-      Print(">>> OUVERT | ", (type == ORDER_TYPE_BUY ? "BUY" : "SELL"),
-            " | Lot: ", lotSize,
-            " | SL: ", NormalizeDouble(slDistance / _Point, 0), " pts (",
-            InputAtrMultSL, "xATR)",
-            " | TP: ", NormalizeDouble(tpDistance / _Point, 0), " pts (1:",
-            InputRiskReward, ")",
-            " | Risk: ", InputRiskPercent, "% = $",
+   {
+      g_PendingTicket = trade.ResultOrder();
+      g_PendingBars = 0;
+      g_State = STATE_ORDER_PLACED;
+
+      Print(">>> LIMIT ORDER | ", (fvg.direction > 0 ? "BUY_LIMIT" : "SELL_LIMIT"),
+            " | #", g_PendingTicket,
+            " | Entry=", NormalizeDouble(entry, _Digits),
+            " | SL=", NormalizeDouble(sl, _Digits),
+            " (", NormalizeDouble(slDist / _Point, 0), " pts structural)",
+            " | TP=", NormalizeDouble(tp, _Digits),
+            " (1:", InputRiskReward, ")",
+            " | Lot=", lotSize,
+            " | Risk=", InputRiskPercent, "% = $",
             NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE) * InputRiskPercent / 100.0, 2));
+   }
    else
-      Print(">>> ERREUR: ", trade.ResultRetcodeDescription());
+   {
+      Print(">>> ORDER ERROR: ", trade.ResultRetcodeDescription());
+   }
 }
 
 //+------------------------------------------------------------------+
@@ -678,5 +733,71 @@ int CountTodayTrades()
       }
    }
    return count;
+}
+
+//+------------------------------------------------------------------+
+//| NEWS FILTER - MQL5 Calendar (live only)                           |
+//| Verifie si un evenement high-impact EUR ou USD est proche          |
+//+------------------------------------------------------------------+
+bool IsNearNews()
+{
+   //--- Skip in tester/optimizer
+   if(MQLInfoInteger(MQL_TESTER) || MQLInfoInteger(MQL_OPTIMIZATION))
+      return false;
+
+   MqlCalendarValue values[];
+   datetime from = TimeCurrent() - InputNewsMinutes * 60;
+   datetime to   = TimeCurrent() + InputNewsMinutes * 60;
+
+   //--- Check EUR events
+   int totalEur = CalendarValueHistory(values, from, to, NULL, "EUR");
+   if(totalEur > 0)
+   {
+      for(int i = 0; i < totalEur; i++)
+      {
+         MqlCalendarEvent event;
+         if(CalendarEventById(values[i].event_id, event))
+         {
+            if(event.importance == CALENDAR_IMPORTANCE_HIGH)
+            {
+               Print(">>> NEWS | EUR High Impact: ", event.name);
+               return true;
+            }
+         }
+      }
+   }
+
+   //--- Check USD events
+   ArrayResize(values, 0);
+   int totalUsd = CalendarValueHistory(values, from, to, NULL, "USD");
+   if(totalUsd > 0)
+   {
+      for(int i = 0; i < totalUsd; i++)
+      {
+         MqlCalendarEvent event;
+         if(CalendarEventById(values[i].event_id, event))
+         {
+            if(event.importance == CALENDAR_IMPORTANCE_HIGH)
+            {
+               Print(">>> NEWS | USD High Impact: ", event.name);
+               return true;
+            }
+         }
+      }
+   }
+
+   return false;
+}
+
+//+------------------------------------------------------------------+
+//| RESET STATE MACHINE                                               |
+//+------------------------------------------------------------------+
+void ResetState()
+{
+   g_State = STATE_IDLE;
+   g_StateDirection = 0;
+   g_BosLevel = 0;
+   g_SwingSL = 0;
+   g_StateBars = 0;
 }
 //+------------------------------------------------------------------+
