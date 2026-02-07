@@ -46,6 +46,8 @@ input int      InputMinScore        = 2;        // Score minimum pour trader (su
 input group "=== ATR & SL/TP ==="
 input int      InputAtrPeriod       = 14;       // ATR period H1
 input double   InputAtrMultSL       = 2.0;      // Multiplicateur ATR pour SL
+input double   InputBeTriggerR      = 2.0;      // Break-Even a 2R (0=desactive)
+input int      InputBeBufferPts     = 20;       // Buffer BE au-dessus de entry (points)
 
 input group "=== FILTRES ==="
 input int      InputStartHour       = 7;        // Session debut (7h London)
@@ -160,11 +162,52 @@ void ManagePositions()
       datetime openTime = (datetime)PositionGetInteger(POSITION_TIME);
       double elapsed   = (double)(TimeCurrent() - openTime) / 3600.0;
 
+      //--- Timeout
       if(elapsed >= InputMaxTradeHours)
       {
          trade.PositionClose(ticket);
          Print(">>> FERME (TIMEOUT) | Ticket #", ticket,
                " | Duree=", NormalizeDouble(elapsed, 1), "h >= ", InputMaxTradeHours, "h max");
+         continue;
+      }
+
+      //--- Break-Even a 2R
+      if(InputBeTriggerR > 0)
+      {
+         double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+         double currentSL = PositionGetDouble(POSITION_SL);
+         double tp        = PositionGetDouble(POSITION_TP);
+         long   posType   = PositionGetInteger(POSITION_TYPE);
+
+         double slDistance = MathAbs(openPrice - currentSL);
+         double triggerDist = slDistance * InputBeTriggerR;
+         double beLevel   = (posType == POSITION_TYPE_BUY)
+                            ? openPrice + InputBeBufferPts * _Point
+                            : openPrice - InputBeBufferPts * _Point;
+
+         //--- Seulement si SL pas deja au BE
+         bool alreadyBE = (posType == POSITION_TYPE_BUY) ? (currentSL >= openPrice) : (currentSL <= openPrice);
+
+         if(!alreadyBE && slDistance > 0)
+         {
+            double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+            double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+
+            bool triggered = false;
+            if(posType == POSITION_TYPE_BUY && bid >= openPrice + triggerDist)
+               triggered = true;
+            if(posType == POSITION_TYPE_SELL && ask <= openPrice - triggerDist)
+               triggered = true;
+
+            if(triggered)
+            {
+               trade.PositionModify(ticket, beLevel, tp);
+               Print(">>> BREAK-EVEN | Ticket #", ticket,
+                     " | Entry=", NormalizeDouble(openPrice, 2),
+                     " | NewSL=", NormalizeDouble(beLevel, 2),
+                     " | Trigger=", InputBeTriggerR, "R");
+            }
+         }
       }
    }
 }
