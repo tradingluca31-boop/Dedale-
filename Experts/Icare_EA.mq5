@@ -59,6 +59,8 @@ input int      InputIdmLookback      = 20;       // Lookback sweep (barres M15)
 input group "=== STOP LOSS ==="
 input int      InputSlBufferPts      = 20;       // Buffer SL (pts = 2 pips)
 input int      InputMinSLPts         = 50;       // SL minimum (pts = 5 pips)
+input int      InputAtrPeriod        = 14;       // ATR period H1
+input double   InputAtrMultSL        = 1.5;      // Multiplicateur ATR pour SL (H1)
 
 input group "=== BREAK-EVEN ==="
 input double   InputBeTriggerR       = 1.5;      // BE a 1.5R (0 = off)
@@ -109,6 +111,7 @@ CTrade         trade;
 int            handleTrendFilter;    // EMA50 H4 ou SMMA50 H1
 int            handleH1EmaFast;      // EMA20 H1 (cross)
 int            handleH1EmaSlow;      // EMA50 H1 (cross)
+int            handleH1Atr;          // ATR H1 (SL volatilite)
 
 //--- H4 Structure
 SwingPoint     g_H4SwingHighs[];
@@ -170,6 +173,14 @@ int OnInit()
       }
    }
 
+   //--- ATR H1
+   handleH1Atr = iATR(_Symbol, PERIOD_H1, InputAtrPeriod);
+   if(handleH1Atr == INVALID_HANDLE)
+   {
+      Print("ERREUR: ATR H1 indicator");
+      return(INIT_FAILED);
+   }
+
    trade.SetExpertMagicNumber(InputMagicNumber);
    trade.SetDeviationInPoints(15);
    trade.SetTypeFilling(ORDER_FILLING_IOC);
@@ -212,6 +223,7 @@ int OnInit()
          " | MinConfl=", InputMinConfluence,
          " | IDM=", (InputIdmFilter ? "ON" : "OFF"),
          " | RR=1:", InputRiskReward,
+         " | SL=MAX(Struct,", InputAtrMultSL, "xATR H1)",
          " | BE@", InputBeTriggerR, "R",
          " | Risk=", InputRiskPercent, "%");
    return(INIT_SUCCEEDED);
@@ -225,6 +237,7 @@ void OnDeinit(const int reason)
    if(handleTrendFilter != INVALID_HANDLE) IndicatorRelease(handleTrendFilter);
    if(handleH1EmaFast != INVALID_HANDLE)   IndicatorRelease(handleH1EmaFast);
    if(handleH1EmaSlow != INVALID_HANDLE)   IndicatorRelease(handleH1EmaSlow);
+   if(handleH1Atr != INVALID_HANDLE)       IndicatorRelease(handleH1Atr);
 
    if(g_PendingTicket > 0)
    {
@@ -830,7 +843,6 @@ bool DetectM15FVG(int direction, FVGZone &fvg)
 
          if(fvg.entry >= ask - minDist) continue;
          if(g_SwingSL >= fvg.entry) continue;
-         if((fvg.entry - g_SwingSL) / _Point < InputMinSLPts) continue;
 
          Print(">>> FVG BULL | [", NormalizeDouble(fvg.bottom, _Digits),
                "-", NormalizeDouble(fvg.top, _Digits),
@@ -851,7 +863,6 @@ bool DetectM15FVG(int direction, FVGZone &fvg)
 
          if(fvg.entry <= bid + minDist) continue;
          if(g_SwingSL <= fvg.entry) continue;
-         if((g_SwingSL - fvg.entry) / _Point < InputMinSLPts) continue;
 
          Print(">>> FVG BEAR | [", NormalizeDouble(fvg.bottom, _Digits),
                "-", NormalizeDouble(fvg.top, _Digits),
@@ -869,8 +880,26 @@ bool DetectM15FVG(int direction, FVGZone &fvg)
 void PlaceLimitOrder(FVGZone &fvg)
 {
    double entry = fvg.entry;
-   double sl    = NormalizeDouble(g_SwingSL, _Digits);
-   double slDist = MathAbs(entry - sl);
+
+   //--- SL = MAX(structural, ATR H1, minimum)
+   double structDist = MathAbs(entry - g_SwingSL);
+
+   double atrBuf[];
+   ArraySetAsSeries(atrBuf, true);
+   double atrDist = 0;
+   if(CopyBuffer(handleH1Atr, 0, 0, 2, atrBuf) >= 2)
+      atrDist = atrBuf[1] * InputAtrMultSL;
+
+   double minDist = InputMinSLPts * _Point;
+   double slDist  = MathMax(structDist, MathMax(atrDist, minDist));
+
+   double sl;
+   if(fvg.direction == +1)
+      sl = entry - slDist;
+   else
+      sl = entry + slDist;
+   sl = NormalizeDouble(sl, _Digits);
+
    double tpDist = slDist * InputRiskReward;
    double tp = (fvg.direction == +1) ? entry + tpDist : entry - tpDist;
    tp = NormalizeDouble(tp, _Digits);
@@ -890,11 +919,12 @@ void PlaceLimitOrder(FVGZone &fvg)
       g_PendingTicket = trade.ResultOrder();
       g_PendingBars = 0;
       g_State = STATE_ORDER_PLACED;
+      string slType = (slDist == atrDist) ? "ATR" : ((slDist == structDist) ? "STRUCT" : "MIN");
       Print(">>> LIMIT | ", (fvg.direction > 0 ? "BUY" : "SELL"),
             " #", g_PendingTicket,
             " | Entry=", NormalizeDouble(entry, _Digits),
             " | SL=", NormalizeDouble(sl, _Digits),
-            " (", NormalizeDouble(slDist / _Point, 0), "pts)",
+            " (", NormalizeDouble(slDist / _Point, 0), "pts ", slType, ")",
             " | TP=", NormalizeDouble(tp, _Digits),
             " (1:", InputRiskReward, ")",
             " | Lot=", lotSize);
