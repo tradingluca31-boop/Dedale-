@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget Vietnam — Couple</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --accent: #DA1F26;
+            --accent2: #ff4757;
+            --bg: #0f0f1a;
+            --card: #1a1a2e;
+            --card2: #16162b;
+            --text: #e0e0e0;
+            --text2: #888;
+            --green: #00d97e;
+            --green-bg: rgba(0, 217, 126, 0.1);
+            --red: #ff4757;
+            --gold: #f7d794;
+            --blue: #4facfe;
+            --radius: 16px;
+        }
+
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 60px; }
+        html { scroll-behavior: smooth; }
+
+        .header { padding: 50px 20px 10px; text-align: center; }
+        .header h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; }
+        .header h1 span { color: var(--accent2); }
+        .header p { color: var(--text2); font-size: 1rem; }
+
+        .nav { display: flex; justify-content: center; gap: 10px; padding: 15px 20px; flex-wrap: wrap; position: sticky; top: 0; background: var(--bg); z-index: 100; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .nav a { padding: 10px 20px; border-radius: 50px; background: var(--card); color: var(--text2); text-decoration: none; font-size: 0.85rem; font-weight: 600; transition: all 0.3s; }
+        .nav a:hover { background: var(--accent); color: white; }
+
+        .container { max-width: 840px; margin: 0 auto; padding: 20px; }
+
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin: 35px 0 20px; padding-bottom: 12px; border-bottom: 2px solid rgba(255,255,255,0.06); }
+        .section-title { font-size: 1.3rem; font-weight: 700; }
+        .btn-add { padding: 7px 16px; border-radius: 50px; background: rgba(0,217,126,0.15); color: var(--green); border: 1px solid rgba(0,217,126,0.3); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.3s; font-family: 'Inter'; }
+        .btn-add:hover { background: rgba(0,217,126,0.3); }
+
+        .card { background: var(--card); border-radius: var(--radius); padding: 28px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.06); }
+
+        .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 0.8rem; color: var(--text2); margin-bottom: 6px; font-weight: 500; }
+        .input-group input { width: 100%; padding: 13px 16px; background: var(--bg); border: 2px solid rgba(255,255,255,0.08); border-radius: 12px; color: white; font-family: 'Inter'; font-size: 1.05rem; font-weight: 600; transition: border-color 0.3s; }
+        .input-group input:focus { outline: none; border-color: var(--accent); }
+        .input-sub { font-size: 0.75rem; color: var(--text2); margin-top: 4px; }
+
+        .big-num { font-size: 2.6rem; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+        .big-num.green { color: var(--green); }
+        .big-num.red { color: var(--red); }
+        .big-num.gold { color: var(--gold); }
+        .big-num.blue { color: var(--blue); }
+        .big-sub { font-size: 0.85rem; color: var(--text2); }
+
+        /* Editable line */
+        .line { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); gap: 10px; }
+        .line:last-child { border-bottom: none; }
+        .line-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+        .line-icon-btn { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; background: rgba(255,255,255,0.05); flex-shrink: 0; border: none; cursor: pointer; transition: background 0.2s; }
+        .line-icon-btn:hover { background: rgba(255,255,255,0.12); }
+        .line-info { flex: 1; min-width: 0; }
+        .line-label-input, .line-detail-input { width: 100%; background: transparent; border: none; color: var(--text); font-family: 'Inter'; padding: 2px 0; border-bottom: 1px solid transparent; transition: border-color 0.2s; }
+        .line-label-input { font-size: 0.9rem; font-weight: 500; }
+        .line-detail-input { font-size: 0.73rem; color: var(--text2); }
+        .line-label-input:hover, .line-detail-input:hover { border-bottom-color: rgba(255,255,255,0.15); }
+        .line-label-input:focus, .line-detail-input:focus { outline: none; border-bottom-color: var(--accent); }
+
+        .line-values { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .val-input { width: 85px; padding: 10px 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: white; font-family: 'Inter'; font-size: 1rem; font-weight: 600; text-align: right; transition: border-color 0.2s; }
+        .val-input:focus { outline: none; border-color: var(--accent); background: rgba(255,255,255,0.08); }
+        .val-sep { color: var(--text2); font-size: 0.8rem; }
+        .val-unit { color: var(--text2); font-size: 0.8rem; font-weight: 500; }
+
+        .btn-del { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,71,87,0.1); border: none; color: var(--red); font-size: 1rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.4; }
+        .line:hover .btn-del { opacity: 1; }
+        .btn-del:hover { background: rgba(255,71,87,0.3); }
+
+        .total { display: flex; justify-content: space-between; align-items: center; padding: 18px 0 0; margin-top: 8px; border-top: 2px solid rgba(255,255,255,0.1); }
+        .total-label { font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+        .total-value { font-size: 1.4rem; font-weight: 800; color: var(--accent2); }
+
+        .reste-positive { background: linear-gradient(135deg, rgba(0,217,126,0.08), rgba(0,217,126,0.02)); border: 1px solid rgba(0,217,126,0.2); }
+        .reste-negative { background: linear-gradient(135deg, rgba(255,71,87,0.08), rgba(255,71,87,0.02)); border: 1px solid rgba(255,71,87,0.2); }
+
+        .progress { margin-top: 18px; }
+        .progress-head { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.8rem; }
+        .progress-bar { height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+        .fill-green { background: var(--green); }
+        .fill-gold { background: var(--gold); }
+        .fill-red { background: var(--red); }
+
+        .act-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
+        .act { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 14px 8px; text-align: center; border: 1px solid rgba(255,255,255,0.04); }
+        .act-icon { font-size: 1.6rem; margin-bottom: 6px; }
+        .act-name { font-size: 0.72rem; color: var(--text2); margin-bottom: 3px; }
+        .act-price { font-size: 0.9rem; font-weight: 700; }
+        .act-count { font-size: 0.7rem; color: var(--green); margin-top: 3px; }
+
+        /* Shopping */
+        .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .shop-cat { background: rgba(255,255,255,0.03); border-radius: 14px; padding: 20px; border: 1px solid rgba(255,255,255,0.05); }
+        .shop-cat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .shop-cat-title { font-size: 0.9rem; font-weight: 700; }
+        .shop-cat-title input { background: transparent; border: none; color: var(--text); font-family: 'Inter'; font-size: 0.9rem; font-weight: 700; width: 140px; border-bottom: 1px solid transparent; }
+        .shop-cat-title input:hover { border-bottom-color: rgba(255,255,255,0.15); }
+        .shop-cat-title input:focus { outline: none; border-bottom-color: var(--accent); }
+        .shop-cat-btns { display: flex; gap: 5px; }
+        .btn-sm { padding: 4px 10px; border-radius: 50px; border: none; font-size: 0.7rem; font-weight: 600; cursor: pointer; font-family: 'Inter'; transition: all 0.2s; }
+        .btn-sm-add { background: rgba(0,217,126,0.12); color: var(--green); }
+        .btn-sm-add:hover { background: rgba(0,217,126,0.25); }
+        .btn-sm-del { background: rgba(255,71,87,0.1); color: var(--red); opacity: 0.5; }
+        .btn-sm-del:hover { opacity: 1; background: rgba(255,71,87,0.25); }
+
+        .shop-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 0.85rem; gap: 8px; }
+        .shop-item:last-child { border-bottom: none; }
+        .shop-item-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+        .shop-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--green); cursor: pointer; flex-shrink: 0; }
+        .shop-item .name-input { background: transparent; border: none; color: var(--text); font-family: 'Inter'; font-size: 0.85rem; flex: 1; min-width: 60px; border-bottom: 1px solid transparent; padding: 2px 0; }
+        .shop-item .name-input:hover { border-bottom-color: rgba(255,255,255,0.15); }
+        .shop-item .name-input:focus { outline: none; border-bottom-color: var(--accent); }
+        .shop-item.checked .name-input { text-decoration: line-through; color: var(--text2); }
+        .shop-item-right { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+        .price-input { width: 48px; padding: 3px 6px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; color: var(--gold); font-family: 'Inter'; font-size: 0.82rem; font-weight: 600; text-align: right; }
+        .price-input:focus { outline: none; border-color: var(--accent); }
+        .shop-item .btn-del-sm { width: 22px; height: 22px; border-radius: 50%; background: transparent; border: none; color: var(--red); font-size: 0.85rem; cursor: pointer; opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; }
+        .shop-item:hover .btn-del-sm { opacity: 0.6; }
+        .shop-item .btn-del-sm:hover { opacity: 1; background: rgba(255,71,87,0.15); }
+
+        .shop-total { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; font-weight: 700; font-size: 0.95rem; }
+        .shop-total .price { color: var(--accent2); }
+
+        .summary-box { margin-top: 15px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 12px; text-align: center; }
+        .summary-box .label { font-size: 0.8rem; color: var(--text2); margin-bottom: 4px; }
+        .summary-box .value { font-size: 1.5rem; font-weight: 800; }
+
+        /* Emoji Picker */
+        .emoji-picker { position: absolute; background: var(--card); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 12px; z-index: 200; display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+        .emoji-picker button { width: 36px; height: 36px; border: none; background: transparent; font-size: 1.2rem; cursor: pointer; border-radius: 8px; transition: background 0.15s; }
+        .emoji-picker button:hover { background: rgba(255,255,255,0.1); }
+
+        /* Toolbar */
+        .toolbar { display: flex; justify-content: center; gap: 10px; margin: 10px 0 0; flex-wrap: wrap; }
+        .toolbar button { padding: 8px 18px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.08); background: var(--card); color: var(--text2); font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: 'Inter'; transition: all 0.3s; }
+        .toolbar button:hover { background: var(--accent); color: white; border-color: var(--accent); }
+
+        @media (max-width: 600px) {
+            .input-row { grid-template-columns: 1fr; }
+            .act-grid { grid-template-columns: repeat(2, 1fr); }
+            .shop-grid { grid-template-columns: 1fr; }
+            .big-num { font-size: 2rem; }
+            .header h1 { font-size: 1.6rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🇻🇳 Budget <span>Vietnam</span></h1>
+        <p>Couple — Appart 2 chambres — Tout modifiable</p>
+    </div>
+
+    <nav class="nav">
+        <a href="#revenus">💶 Revenus</a>
+        <a href="#depart">🧳 Départ</a>
+        <a href="#achats">🛒 À Acheter</a>
+        <a href="#mensuel">📌 Fixes</a>
+        <a href="#variable">🔄 Variables</a>
+        <a href="#economie">💰 Économie</a>
+        <a href="#reste">🎉 Reste</a>
+    </nav>
+
+    <div class="container">
+
+        <!-- REVENUS -->
+        <div class="section-header" id="revenus"><div class="section-title">💶 Tes Revenus</div></div>
+        <div class="card">
+            <div class="input-row">
+                <div class="input-group">
+                    <label>Revenu mensuel net couple (€)</label>
+                    <input type="number" id="income" value="4000" oninput="update()">
+                    <div class="input-sub">Trading + autres revenus</div>
+                </div>
+                <div class="input-group">
+                    <label>Épargne disponible (€)</label>
+                    <input type="number" id="savings" value="8000" oninput="update()">
+                    <div class="input-sub">Pour le départ + installation</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BUDGET DEPART -->
+        <div class="section-header" id="depart">
+            <div class="section-title">🧳 Budget de Départ</div>
+            <button class="btn-add" onclick="addItem('departure')">+ Ajouter</button>
+        </div>
+        <div class="card" id="departCard"></div>
+
+        <!-- A ACHETER -->
+        <div class="section-header" id="achats">
+            <div class="section-title">🛒 À Acheter pour s'installer</div>
+            <button class="btn-add" onclick="addShopCategory()">+ Catégorie</button>
+        </div>
+        <div class="shop-grid" id="shopGrid"></div>
+        <div class="card" style="margin-top: 20px;" id="shopSummary"></div>
+
+        <!-- MENSUEL FIXE -->
+        <div class="section-header" id="mensuel">
+            <div class="section-title">📌 Dépenses Fixes / mois</div>
+            <button class="btn-add" onclick="addItem('monthlyFixed')">+ Ajouter</button>
+        </div>
+        <div class="card" id="fixedCard"></div>
+
+        <!-- MENSUEL VARIABLE -->
+        <div class="section-header" id="variable">
+            <div class="section-title">🔄 Dépenses Variables / mois</div>
+            <button class="btn-add" onclick="addItem('monthlyVariable')">+ Ajouter</button>
+        </div>
+        <div class="card" id="variableCard"></div>
+
+        <!-- TOTAL MENSUEL -->
+        <div class="card" id="mensuelTotal" style="background: linear-gradient(135deg, rgba(255,71,87,0.06), rgba(255,71,87,0.02)); border: 1px solid rgba(255,71,87,0.15);"></div>
+
+        <!-- ECONOMIE -->
+        <div class="section-header" id="economie">
+            <div class="section-title">💰 Économie / mois</div>
+            <button class="btn-add" onclick="addItem('economy')">+ Ajouter</button>
+        </div>
+        <div class="card" id="economyCard"></div>
+
+        <!-- RESTE A VIVRE -->
+        <div class="section-header" id="reste"><div class="section-title">🎉 Reste à Vivre</div></div>
+        <div id="resteContent"></div>
+
+        <!-- TOOLBAR -->
+        <div class="toolbar" style="margin-top: 30px;">
+            <button onclick="exportData()">📤 Exporter JSON</button>
+            <button onclick="document.getElementById('importFile').click()">📥 Importer JSON</button>
+            <button onclick="if(confirm('Réinitialiser toutes les données ?')) { localStorage.removeItem('vn_budget'); location.reload(); }">🔄 Réinitialiser</button>
+        </div>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+
+    </div>
+
+    <!-- Emoji Picker (hidden) -->
+    <div class="emoji-picker" id="emojiPicker" style="display:none;"></div>
+
+    <script>
+        // ===================== EMOJIS =====================
+        const emojis = ['✈️','📋','🏠','📅','🛡️','💰','🎒','🧳','📦','💳','🏥','🍜','🛵','📱','💡','💻','👕','🎉','🔧','☕','💆','🍺','🍽️','🏖️','🏋️','🎬','🧴','🛒','🔌','💡','🪑','🛏️','🍳','🧹','📈','🏦','🐷'];
+
+        let pickerTarget = null;
+        const pickerEl = document.getElementById('emojiPicker');
+        pickerEl.innerHTML = emojis.map(e => `<button onclick="pickEmoji('${e}')">${e}</button>`).join('');
+
+        function showEmojiPicker(el, section, idx) {
+            pickerTarget = { section, idx };
+            const rect = el.getBoundingClientRect();
+            pickerEl.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+            pickerEl.style.left = Math.max(10, rect.left - 50) + 'px';
+            pickerEl.style.display = 'grid';
+        }
+
+        function pickEmoji(emoji) {
+            if (pickerTarget) {
+                const t = pickerTarget;
+                if (['departure', 'monthlyFixed', 'monthlyVariable', 'economy'].includes(t.section)) {
+                    data[t.section][t.idx].icon = emoji;
+                } else if (t.section === 'activities') {
+                    data.activities[t.idx].icon = emoji;
+                }
+                saveData();
+                render();
+            }
+            pickerEl.style.display = 'none';
+            pickerTarget = null;
+        }
+
+        document.addEventListener('click', e => {
+            if (!pickerEl.contains(e.target) && !e.target.classList.contains('line-icon-btn')) {
+                pickerEl.style.display = 'none';
+            }
+        });
+
+        // ===================== DATA =====================
+        const defaultData = {
+            departure: [
+                { icon: '✈️', label: 'Vols aller x2', detail: 'Paris → Ho Chi Minh / Hanoi', price: 1200 },
+                { icon: '📋', label: 'Visa x2', detail: 'E-visa 90 jours', price: 200 },
+                { icon: '📦', label: 'Déménagement', detail: 'Caution + 1er mois loyer + installation', price: 3200 },
+                { icon: '🛡️', label: 'Assurance santé x2', detail: 'Safetywing / Cigna', price: 200 },
+            ],
+            monthlyFixed: [
+                { icon: '🏠', label: 'Loyer appart 2 chambres', detail: 'Saigon D2/D7 ou Hanoi Tay Ho', price: 700 },
+                { icon: '📱', label: 'Internet + téléphones x2', detail: 'Fibre + 2 forfaits 4G', price: 30 },
+                { icon: '💡', label: 'Électricité + eau', detail: 'Clim modérée', price: 70 },
+                { icon: '🏥', label: 'Assurance santé x2', detail: 'Mensuel', price: 150 },
+                { icon: '🤖', label: 'Claude Code', detail: 'Abonnement mensuel', price: 110 },
+                { icon: '📊', label: 'TradingView', detail: 'Abonnement mensuel', price: 20 },
+                { icon: '🖥️', label: 'VPS Trading', detail: 'Serveur MT5', price: 25 },
+            ],
+            monthlyVariable: [
+                { icon: '🍜', label: 'Alimentation couple', detail: 'Courses marché + restos', price: 450 },
+                { icon: '🛵', label: 'Transport', detail: 'Scooter location + Grab', price: 60 },
+                { icon: '👕', label: 'Vêtements, perso', detail: '', price: 40 },
+                { icon: '🎉', label: 'Sorties, loisirs', detail: 'Bars, activités, weekends', price: 200 },
+                { icon: '🔧', label: 'Divers, imprévu', detail: '', price: 80 },
+            ],
+            economy: [
+                { icon: '🐷', label: 'Épargne mensuelle', detail: 'Mise de côté', price: 300 },
+                { icon: '📈', label: 'Investissement', detail: 'Trading / crypto / ETF', price: 200 },
+            ],
+            shopping: [
+                { cat: '💻 Setup Trading', items: [
+                    { name: 'Écran externe 27"', price: 150, checked: false },
+                    { name: 'Support laptop', price: 15, checked: false },
+                    { name: 'Clavier mécanique', price: 30, checked: false },
+                    { name: 'Souris ergonomique', price: 20, checked: false },
+                    { name: 'Casque anti-bruit', price: 40, checked: false },
+                    { name: 'Chaise bureau ergonomique', price: 80, checked: false },
+                ]},
+                { cat: '📸 Pour Sonia', items: [
+                    { name: 'Caméra / appareil photo', price: 300, checked: false },
+                    { name: 'Trépied', price: 25, checked: false },
+                    { name: 'Micro cravate', price: 20, checked: false },
+                    { name: 'Ring light', price: 30, checked: false },
+                    { name: 'Carte SD 128Go', price: 15, checked: false },
+                ]},
+                { cat: '🔌 Tech / Infra', items: [
+                    { name: 'Adaptateur prises', price: 5, checked: false },
+                    { name: 'Multiprise parasurtenseur', price: 10, checked: false },
+                    { name: 'Routeur 4G backup', price: 35, checked: false },
+                    { name: 'VPN (1 an)', price: 60, checked: false },
+                    { name: 'Hub USB-C', price: 20, checked: false },
+                ]},
+                { cat: '🎒 Perso / Voyage', items: [
+                    { name: 'Valise cabine', price: 50, checked: false },
+                    { name: 'Sac à dos quotidien', price: 30, checked: false },
+                    { name: 'Pharmacie de base', price: 20, checked: false },
+                    { name: 'Anti-moustiques', price: 8, checked: false },
+                ]},
+            ],
+            activities: [
+                { icon: '🍜', name: 'Phở bò rue', price: 1.5 },
+                { icon: '🍺', name: 'Bia hơi', price: 0.5 },
+                { icon: '☕', name: 'Cà phê sữa đá', price: 1 },
+                { icon: '💆', name: 'Massage 1h', price: 6 },
+                { icon: '🍽️', name: 'Resto couple', price: 10 },
+                { icon: '🏖️', name: 'Weekend plage', price: 60 },
+                { icon: '🏋️', name: 'Salle sport/mois', price: 25 },
+                { icon: '🎬', name: 'Ciné couple', price: 5 },
+            ],
+        };
+
+        let data;
+        function loadData() {
+            const saved = localStorage.getItem('vn_budget');
+            if (saved) {
+                data = JSON.parse(saved);
+                // Migration: ensure activities exist
+                if (!data.activities) data.activities = JSON.parse(JSON.stringify(defaultData.activities));
+                // Migration: departure min/max → price
+                data.departure.forEach(d => {
+                    if (d.price === undefined && (d.min !== undefined || d.max !== undefined)) {
+                        d.price = d.max || d.min || 0;
+                        delete d.min; delete d.max;
+                    }
+                });
+                // Migration: monthly → monthlyFixed + monthlyVariable
+                if (data.monthly && !data.monthlyFixed) {
+                    const fixLabels = ['loyer', 'internet', 'téléphone', 'électricité', 'eau', 'assurance', 'claude', 'tradingview', 'vps'];
+                    data.monthlyFixed = [];
+                    data.monthlyVariable = [];
+                    data.monthly.forEach(item => {
+                        const lbl = item.label.toLowerCase();
+                        if (fixLabels.some(f => lbl.includes(f))) {
+                            data.monthlyFixed.push(item);
+                        } else {
+                            data.monthlyVariable.push(item);
+                        }
+                    });
+                    delete data.monthly;
+                }
+                if (!data.monthlyFixed) data.monthlyFixed = JSON.parse(JSON.stringify(defaultData.monthlyFixed));
+                if (!data.monthlyVariable) data.monthlyVariable = JSON.parse(JSON.stringify(defaultData.monthlyVariable));
+                // Migration: monthlyFixed/monthlyVariable min/max → price
+                ['monthlyFixed', 'monthlyVariable'].forEach(section => {
+                    if (data[section]) {
+                        data[section].forEach(item => {
+                            if (item.price === undefined && (item.min !== undefined || item.max !== undefined)) {
+                                item.price = item.max || item.min || 0;
+                                delete item.min; delete item.max;
+                            }
+                        });
+                    }
+                });
+                // Migration: add missing fixed subscriptions
+                const requiredFixed = [
+                    { key: 'Claude', icon: '🤖', label: 'Claude Code', detail: 'Abonnement mensuel', price: 110 },
+                    { key: 'TradingView', icon: '📊', label: 'TradingView', detail: 'Abonnement mensuel', price: 20 },
+                    { key: 'VPS', icon: '🖥️', label: 'VPS Trading', detail: 'Serveur MT5', price: 25 },
+                ];
+                requiredFixed.forEach(req => {
+                    if (!data.monthlyFixed.some(f => f.label.toLowerCase().includes(req.key.toLowerCase()))) {
+                        data.monthlyFixed.push({ icon: req.icon, label: req.label, detail: req.detail, price: req.price });
+                    }
+                });
+                // Migration: ensure economy exists
+                if (!data.economy) data.economy = JSON.parse(JSON.stringify(defaultData.economy));
+                // Migration: economy min/max → price
+                data.economy.forEach(item => {
+                    if (item.price === undefined && (item.min !== undefined || item.max !== undefined)) {
+                        item.price = item.max || item.min || 0;
+                        delete item.min; delete item.max;
+                    }
+                });
+                saveData();
+            } else {
+                data = JSON.parse(JSON.stringify(defaultData));
+            }
+        }
+        function saveData() {
+            localStorage.setItem('vn_budget', JSON.stringify(data));
+        }
+
+        // ===================== ITEM MANAGEMENT =====================
+        function addItem(section) {
+            data[section].push({ icon: '📦', label: 'Nouveau poste', detail: '', price: 0 });
+            saveData();
+            render();
+        }
+
+        function delItem(section, idx) {
+            data[section].splice(idx, 1);
+            saveData();
+            render();
+        }
+
+        function updateField(section, idx, field, value) {
+            if (field === 'price' || field === 'amount') {
+                data[section][idx][field] = parseFloat(value) || 0;
+            } else {
+                data[section][idx][field] = value;
+            }
+            saveData();
+            updateTotals();
+        }
+
+        // ===================== SHOPPING MANAGEMENT =====================
+        function addShopCategory() {
+            data.shopping.push({ cat: '📦 Nouvelle catégorie', items: [{ name: 'Nouvel article', price: 0, checked: false }] });
+            saveData();
+            render();
+        }
+
+        function delShopCategory(catIdx) {
+            if (confirm('Supprimer cette catégorie ?')) {
+                data.shopping.splice(catIdx, 1);
+                saveData();
+                render();
+            }
+        }
+
+        function addShopItem(catIdx) {
+            data.shopping[catIdx].items.push({ name: 'Nouvel article', price: 0, checked: false });
+            saveData();
+            render();
+        }
+
+        function delShopItem(catIdx, itemIdx) {
+            data.shopping[catIdx].items.splice(itemIdx, 1);
+            saveData();
+            render();
+        }
+
+        function toggleShopItem(catIdx, itemIdx) {
+            data.shopping[catIdx].items[itemIdx].checked = !data.shopping[catIdx].items[itemIdx].checked;
+            saveData();
+            render();
+        }
+
+        function updateShopCat(catIdx, value) {
+            data.shopping[catIdx].cat = value;
+            saveData();
+        }
+
+        function updateShopItem(catIdx, itemIdx, field, value) {
+            if (field === 'price') {
+                data.shopping[catIdx].items[itemIdx].price = parseFloat(value) || 0;
+            } else {
+                data.shopping[catIdx].items[itemIdx][field] = value;
+            }
+            saveData();
+            updateTotals();
+        }
+
+        // ===================== EXPORT / IMPORT =====================
+        function exportData() {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'budget-vietnam.json';
+            a.click();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    data = JSON.parse(e.target.result);
+                    saveData();
+                    render();
+                } catch (err) {
+                    alert('Fichier invalide');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // ===================== RENDER =====================
+        function renderLine(section, item, idx) {
+            return `
+                <div class="line">
+                    <div class="line-left">
+                        <button class="line-icon-btn" onclick="showEmojiPicker(this, '${section}', ${idx})">${item.icon}</button>
+                        <div class="line-info">
+                            <input class="line-label-input" value="${item.label}" onchange="updateField('${section}', ${idx}, 'label', this.value)">
+                            <input class="line-detail-input" value="${item.detail}" placeholder="détail..." onchange="updateField('${section}', ${idx}, 'detail', this.value)">
+                        </div>
+                    </div>
+                    <div class="line-values">
+                        <input class="val-input" type="number" value="${item.price}" onchange="updateField('${section}', ${idx}, 'price', this.value)" oninput="updateTotals()">
+                        <span class="val-unit">€</span>
+                        <button class="btn-del" onclick="delItem('${section}', ${idx})" title="Supprimer">×</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function render() {
+            const income = parseInt(document.getElementById('income').value) || 0;
+            const savings = parseInt(document.getElementById('savings').value) || 0;
+
+            // DEPARTURE
+            document.getElementById('departCard').innerHTML =
+                data.departure.map((d, i) => renderLine('departure', d, i)).join('') +
+                '<div class="total"><div class="total-label">Total départ</div><div class="total-value" id="depTotal"></div></div>' +
+                '<div class="progress" id="depProgress"></div>';
+
+            // SHOPPING
+            let shopHTML = '';
+            data.shopping.forEach((cat, catIdx) => {
+                const catTotal = cat.items.reduce((s, i) => s + i.price, 0);
+                shopHTML += `
+                    <div class="shop-cat">
+                        <div class="shop-cat-header">
+                            <div class="shop-cat-title"><input value="${cat.cat}" onchange="updateShopCat(${catIdx}, this.value)"></div>
+                            <div class="shop-cat-btns">
+                                <button class="btn-sm btn-sm-add" onclick="addShopItem(${catIdx})">+</button>
+                                <button class="btn-sm btn-sm-del" onclick="delShopCategory(${catIdx})">×</button>
+                            </div>
+                        </div>
+                        ${cat.items.map((item, itemIdx) => `
+                            <div class="shop-item ${item.checked ? 'checked' : ''}">
+                                <div class="shop-item-left">
+                                    <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleShopItem(${catIdx}, ${itemIdx})">
+                                    <input class="name-input" value="${item.name}" onchange="updateShopItem(${catIdx}, ${itemIdx}, 'name', this.value)">
+                                </div>
+                                <div class="shop-item-right">
+                                    <input class="price-input" type="number" value="${item.price}" onchange="updateShopItem(${catIdx}, ${itemIdx}, 'price', this.value)" oninput="updateTotals()">
+                                    <span class="val-unit">€</span>
+                                    <button class="btn-del-sm" onclick="delShopItem(${catIdx}, ${itemIdx})">×</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                        <div class="shop-total">
+                            <span>Sous-total</span>
+                            <span class="price">${catTotal} €</span>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('shopGrid').innerHTML = shopHTML;
+
+            // MONTHLY FIXED
+            document.getElementById('fixedCard').innerHTML =
+                data.monthlyFixed.map((m, i) => renderLine('monthlyFixed', m, i)).join('') +
+                '<div class="total"><div class="total-label">Total fixe</div><div class="total-value" id="fixedTotal"></div></div>';
+
+            // MONTHLY VARIABLE
+            document.getElementById('variableCard').innerHTML =
+                data.monthlyVariable.map((m, i) => renderLine('monthlyVariable', m, i)).join('') +
+                '<div class="total"><div class="total-label">Total variable</div><div class="total-value" id="variableTotal"></div></div>';
+
+            // ECONOMY
+            document.getElementById('economyCard').innerHTML =
+                data.economy.map((m, i) => renderLine('economy', m, i)).join('') +
+                '<div class="total"><div class="total-label">Total économie</div><div class="total-value" id="economyTotal"></div></div>';
+
+            updateTotals();
+        }
+
+        function updateTotals() {
+            const income = parseInt(document.getElementById('income').value) || 0;
+            const savings = parseInt(document.getElementById('savings').value) || 0;
+
+            // Dep totals
+            const depTotal = data.departure.reduce((s, i) => s + (i.price || 0), 0);
+
+            const depTotalEl = document.getElementById('depTotal');
+            if (depTotalEl) depTotalEl.textContent = `${depTotal.toLocaleString()} €`;
+
+            const depProgress = document.getElementById('depProgress');
+            if (depProgress) {
+                const pctDep = depTotal > 0 ? Math.min(Math.round(savings / depTotal * 100), 100) : 100;
+                depProgress.innerHTML = `
+                    <div class="progress-head">
+                        <span style="color:var(--text2)">Couvert par ton épargne</span>
+                        <span style="color:${savings >= depTotal ? 'var(--green)' : 'var(--red)'}; font-weight:600;">${pctDep}%</span>
+                    </div>
+                    <div class="progress-bar"><div class="progress-fill ${savings >= depTotal ? 'fill-green' : 'fill-red'}" style="width:${pctDep}%"></div></div>
+                `;
+            }
+
+            // Month totals (single price)
+            const fixTotal = data.monthlyFixed.reduce((s, i) => s + (i.price || 0), 0);
+            const varTotal = data.monthlyVariable.reduce((s, i) => s + (i.price || 0), 0);
+            const ecoTotal = data.economy.reduce((s, i) => s + (i.price || 0), 0);
+            const monthTotal = fixTotal + varTotal;
+            const monthTotalWithEco = monthTotal + ecoTotal;
+
+            const fixedTotalEl = document.getElementById('fixedTotal');
+            if (fixedTotalEl) fixedTotalEl.textContent = `${fixTotal.toLocaleString()} €`;
+
+            const variableTotalEl = document.getElementById('variableTotal');
+            if (variableTotalEl) variableTotalEl.textContent = `${varTotal.toLocaleString()} €`;
+
+            const economyTotalEl = document.getElementById('economyTotal');
+            if (economyTotalEl) economyTotalEl.textContent = `${ecoTotal.toLocaleString()} €`;
+
+            const mensuelTotalEl = document.getElementById('mensuelTotal');
+            if (mensuelTotalEl) mensuelTotalEl.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-size:0.8rem; color:var(--text2);">Total mensuel (dépenses)</div>
+                        <div style="font-size:1.6rem; font-weight:800; color:var(--accent2);">${monthTotal.toLocaleString()} €</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.75rem; color:var(--text2);">📌 Fixe: ${fixTotal.toLocaleString()} €</div>
+                        <div style="font-size:0.75rem; color:var(--text2);">🔄 Variable: ${varTotal.toLocaleString()} €</div>
+                        <div style="font-size:0.75rem; color:var(--text2);">💰 Économie: ${ecoTotal.toLocaleString()} €</div>
+                    </div>
+                </div>
+            `;
+
+            // Shop totals
+            const shopTotalAll = data.shopping.reduce((s, c) => s + c.items.reduce((ss, i) => ss + i.price, 0), 0);
+            const allItems = data.shopping.flatMap(c => c.items);
+            const shopCount = allItems.length;
+            const shopChecked = allItems.filter(i => i.checked).length;
+            const shopRemaining = allItems.filter(i => !i.checked).reduce((s, i) => s + i.price, 0);
+
+            document.getElementById('shopSummary').innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                    <div>
+                        <div style="font-size:0.8rem; color:var(--text2);">Budget total achats</div>
+                        <div style="font-size:1.8rem; font-weight:800; color:var(--gold);">${shopTotalAll} €</div>
+                        <div style="font-size:0.75rem; color:var(--text2);">≈ ${Math.round(shopTotalAll * 25500).toLocaleString()} VNĐ</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size:0.8rem; color:var(--text2);">Progression</div>
+                        <div style="font-size:1.8rem; font-weight:800; color:var(--green);">${shopChecked}/${shopCount}</div>
+                        <div style="font-size:0.75rem; color:var(--text2);">${shopCount > 0 ? Math.round(shopChecked/shopCount*100) : 0}% acheté</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size:0.8rem; color:var(--text2);">Reste à acheter</div>
+                        <div style="font-size:1.8rem; font-weight:800; color:${shopRemaining > 0 ? 'var(--accent2)' : 'var(--green)'};">${shopRemaining} €</div>
+                    </div>
+                </div>
+                <div class="progress" style="margin-top:15px;">
+                    <div class="progress-bar"><div class="progress-fill fill-green" style="width:${shopCount > 0 ? Math.round(shopChecked/shopCount*100) : 0}%"></div></div>
+                </div>
+            `;
+
+            // RESTE A VIVRE
+            const reste = income - monthTotalWithEco;
+            const resteBeforeEco = income - monthTotal;
+            const isOk = reste >= 0;
+            const pct = income > 0 ? Math.min(Math.round(monthTotalWithEco / income * 100), 100) : 0;
+            const savingsAfter = savings - depTotal - shopTotalAll;
+
+            document.getElementById('resteContent').innerHTML = `
+                <div class="card ${isOk ? 'reste-positive' : 'reste-negative'}">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                        <div>
+                            <div style="font-size:0.8rem; color:var(--text2); margin-bottom:6px;">Reste à vivre / mois</div>
+                            <div class="big-num ${isOk ? 'green' : 'red'}">${reste >= 0 ? '+' : ''}${reste.toLocaleString()} €</div>
+                            <div class="big-sub">Après dépenses + économie</div>
+                        </div>
+                        <div>
+                            <div style="font-size:0.8rem; color:var(--text2); margin-bottom:6px;">Après installation</div>
+                            <div class="big-num ${savingsAfter >= 0 ? 'blue' : 'red'}">${savingsAfter.toLocaleString()} €</div>
+                            <div class="big-sub">Épargne restante</div>
+                            ${savingsAfter > 0 && monthTotal > 0 ? `<div style="font-size:0.73rem; color:var(--text2); margin-top:4px;">≈ ${Math.floor(savingsAfter/monthTotal)} mois de survie sans revenu</div>` : ''}
+                        </div>
+                    </div>
+                    <div class="progress" style="margin-top:20px;">
+                        <div class="progress-head">
+                            <span style="color:var(--text2)">Part dépenses + éco / revenu</span>
+                            <span style="color:${pct<=60?'var(--green)':pct<=80?'var(--gold)':'var(--red)'};font-weight:600;">${pct}%</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill ${pct<=60?'fill-green':pct<=80?'fill-gold':'fill-red'}" style="width:${pct}%"></div></div>
+                    </div>
+                </div>
+
+                ${isOk ? `
+                <div class="card">
+                    <div style="font-size:1rem; font-weight:700; margin-bottom:5px;">🎉 Ce que tu peux faire avec +${reste} €/mois</div>
+                    <div class="act-grid">
+                        ${data.activities.map((a, i) => `
+                            <div class="act">
+                                <div class="act-icon" style="cursor:pointer" onclick="showEmojiPicker(this, 'activities', ${i})">${a.icon}</div>
+                                <div class="act-name">${a.name}</div>
+                                <div class="act-price">${a.price < 10 ? a.price.toFixed(1) : a.price} €</div>
+                                <div class="act-count">≈ ${Math.min(Math.floor(reste / a.price), 999)}x/mois</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : `
+                <div class="card reste-negative">
+                    <div style="text-align:center; padding:20px;">
+                        <div style="font-size:1.2rem;">Il te manque <strong style="color:var(--red);">${Math.abs(reste).toLocaleString()} €/mois</strong></div>
+                        <div style="color:var(--text2); margin-top:8px;">Augmente tes revenus ou réduis le budget</div>
+                    </div>
+                </div>
+                `}
+
+                <div class="card" style="margin-top:20px;">
+                    <div style="font-size:1rem; font-weight:700; margin-bottom:15px;">📊 Résumé complet</div>
+                    <div class="line" style="border-bottom:1px solid rgba(255,255,255,0.04);">
+                        <div class="line-left"><button class="line-icon-btn" style="cursor:default">💶</button><div class="line-info"><div style="font-size:0.9rem;font-weight:500;">Revenu mensuel</div></div></div>
+                        <div style="font-size:0.95rem;font-weight:700;color:var(--green)">${income.toLocaleString()} €</div>
+                    </div>
+                    <div class="line" style="border-bottom:1px solid rgba(255,255,255,0.04);">
+                        <div class="line-left"><button class="line-icon-btn" style="cursor:default">🧳</button><div class="line-info"><div style="font-size:0.9rem;font-weight:500;">Budget départ</div></div></div>
+                        <div style="font-size:0.95rem;font-weight:700;">${depTotal.toLocaleString()} €</div>
+                    </div>
+                    <div class="line" style="border-bottom:1px solid rgba(255,255,255,0.04);">
+                        <div class="line-left"><button class="line-icon-btn" style="cursor:default">🛒</button><div class="line-info"><div style="font-size:0.9rem;font-weight:500;">Achats installation</div></div></div>
+                        <div style="font-size:0.95rem;font-weight:700;">${shopTotalAll.toLocaleString()} €</div>
+                    </div>
+                    <div class="line" style="border-bottom:1px solid rgba(255,255,255,0.04);">
+                        <div class="line-left"><button class="line-icon-btn" style="cursor:default">📅</button><div class="line-info"><div style="font-size:0.9rem;font-weight:500;">Dépenses mensuelles</div></div></div>
+                        <div style="font-size:0.95rem;font-weight:700;">${monthTotal.toLocaleString()} €</div>
+                    </div>
+                    <div class="line" style="border-bottom:1px solid rgba(255,255,255,0.04);">
+                        <div class="line-left"><button class="line-icon-btn" style="cursor:default">💰</button><div class="line-info"><div style="font-size:0.9rem;font-weight:500;">Économie mensuelle</div></div></div>
+                        <div style="font-size:0.95rem;font-weight:700;color:var(--gold)">${ecoTotal.toLocaleString()} €</div>
+                    </div>
+                    <div class="line">
+                        <div class="line-left"><button class="line-icon-btn" style="cursor:default">🎉</button><div class="line-info"><div style="font-size:0.9rem;font-weight:500;">Reste à vivre</div></div></div>
+                        <div style="font-size:0.95rem;font-weight:700;color:${isOk?'var(--green)':'var(--red)'}">${reste >= 0 ? '+' : ''}${reste.toLocaleString()} €</div>
+                    </div>
+                    <div class="total">
+                        <div class="total-label">Coût total 1ère année</div>
+                        <div class="total-value">${(depTotal + shopTotalAll + monthTotalWithEco * 12).toLocaleString()} €</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ===================== INIT =====================
+        function update() {
+            render();
+        }
+
+        loadData();
+        render();
+    </script>
+</body>
+</html>

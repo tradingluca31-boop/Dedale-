@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparatif Expatriation 2026 - Éditable</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --dark: #1a1a2e;
+            --light: #f8f9fa;
+            --accent: #667eea;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --shadow: 0 10px 40px rgba(0,0,0,0.1);
+            --shadow-hover: 0 20px 60px rgba(0,0,0,0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            color: var(--dark);
+        }
+
+        /* Admin Toggle Button */
+        .admin-toggle {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 50px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-toggle:hover {
+            transform: scale(1.05);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .admin-toggle.active {
+            background: var(--danger);
+        }
+
+        /* Admin Panel */
+        .admin-panel {
+            position: fixed;
+            top: 0;
+            left: -450px;
+            width: 450px;
+            height: 100vh;
+            background: white;
+            box-shadow: var(--shadow-hover);
+            z-index: 999;
+            transition: left 0.4s ease;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .admin-panel.open {
+            left: 0;
+        }
+
+        .admin-panel h2 {
+            margin-bottom: 25px;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--light);
+            border-radius: 12px;
+        }
+
+        .admin-section h3 {
+            margin-bottom: 15px;
+            font-size: 1rem;
+            color: var(--accent);
+        }
+
+        .admin-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .admin-btn.primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .admin-btn.success {
+            background: var(--success);
+            color: white;
+        }
+
+        .admin-btn.danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .admin-btn.warning {
+            background: var(--warning);
+            color: var(--dark);
+        }
+
+        .admin-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .admin-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+            transition: border-color 0.3s ease;
+        }
+
+        .admin-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .admin-textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .admin-textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .country-list-admin {
+            margin-top: 15px;
+        }
+
+        .country-item-admin {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .country-item-admin span {
+            font-weight: 500;
+        }
+
+        .country-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .country-actions button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-edit {
+            background: var(--warning);
+            color: var(--dark);
+        }
+
+        .btn-delete {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 1001;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalIn 0.3s ease;
+        }
+
+        @keyframes modalIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .modal h2 {
+            margin-bottom: 25px;
+            color: var(--dark);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--dark);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            background: var(--success);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-weight: 500;
+            box-shadow: var(--shadow);
+            z-index: 1002;
+            transform: translateX(150%);
+            transition: transform 0.4s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            padding: 80px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .hero h1 span {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            color: rgba(255,255,255,0.8);
+            max-width: 600px;
+            margin: 0 auto 40px;
+            position: relative;
+        }
+
+        .flags {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            position: relative;
+            flex-wrap: wrap;
+        }
+
+        .flag-item {
+            font-size: 4rem;
+            animation: float 3s ease-in-out infinite;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .flag-item:hover {
+            transform: scale(1.2);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Navigation */
+        .nav {
+            background: white;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 50px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--light);
+            color: var(--dark);
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow);
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .section-title h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .section-title h2::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 2px;
+        }
+
+        .section-title p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        /* Country Cards */
+        .country-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+
+        .country-card {
+            background: white;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: all 0.4s ease;
+            position: relative;
+        }
+
+        .country-card:hover {
+            transform: translateY(-10px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .country-card .delete-card {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+
+        .country-card .delete-card:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        body.edit-mode .country-card .delete-card {
+            display: flex;
+        }
+
+        .card-header {
+            padding: 40px 30px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+        }
+
+        .card-flag {
+            font-size: 4rem;
+            margin-bottom: 15px;
+        }
+
+        .card-country {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .card-tagline {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .card-body {
+            padding: 30px;
+        }
+
+        .budget-highlight {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 16px;
+            padding: 25px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .budget-label {
+            font-size: 0.9rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .budget-amount {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .budget-note {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .card-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-item {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-icon {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .pros-cons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .pros, .cons {
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        .pros {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        }
+
+        .cons {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        }
+
+        .pros h4, .cons h4 {
+            font-size: 1rem;
+            margin-bottom: 15px;
+        }
+
+        .pros h4 { color: #155724; }
+        .cons h4 { color: #721c24; }
+
+        .pros ul, .cons ul {
+            list-style: none;
+            font-size: 0.85rem;
+        }
+
+        .pros li, .cons li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .pros li:last-child, .cons li:last-child {
+            border-bottom: none;
+        }
+
+        /* Comparison Table */
+        .comparison-section {
+            background: white;
+            border-radius: 24px;
+            padding: 50px;
+            margin-bottom: 60px;
+            box-shadow: var(--shadow);
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            overflow: hidden;
+            border-radius: 16px;
+        }
+
+        .comparison-table thead {
+            background: var(--dark);
+            color: white;
+        }
+
+        .comparison-table th {
+            padding: 20px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .comparison-table th:first-child {
+            text-align: left;
+        }
+
+        .comparison-table td {
+            padding: 18px 20px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .comparison-table td:first-child {
+            text-align: left;
+            font-weight: 500;
+            background: #f8f9fa;
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .comparison-table tr:hover td {
+            background: #f8f9fa;
+        }
+
+        .winner {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%) !important;
+            font-weight: 700;
+            color: #155724;
+        }
+
+        /* Budget Section */
+        .budget-section {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 24px;
+            padding: 50px;
+            margin-bottom: 60px;
+            color: white;
+        }
+
+        .budget-section .section-title h2 {
+            color: white;
+        }
+
+        .budget-section .section-title p {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .budget-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .budget-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .budget-card-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .budget-card-flag {
+            font-size: 3rem;
+        }
+
+        .budget-card-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .budget-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .budget-item:last-child {
+            border-bottom: none;
+        }
+
+        .budget-item-label {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .budget-item-value {
+            font-weight: 600;
+        }
+
+        .budget-total {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid rgba(255,255,255,0.3);
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        /* Verdict Section */
+        .verdict-section {
+            background: white;
+            border-radius: 24px;
+            padding: 50px;
+            margin-bottom: 60px;
+            box-shadow: var(--shadow);
+        }
+
+        .verdict-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .verdict-card {
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        .verdict-card.gold {
+            background: linear-gradient(135deg, #f7d794 0%, #f5cd79 100%);
+            border: 3px solid #f39c12;
+        }
+
+        .verdict-card.silver {
+            background: linear-gradient(135deg, #dfe6e9 0%, #b2bec3 100%);
+            border: 3px solid #636e72;
+        }
+
+        .verdict-card.bronze {
+            background: linear-gradient(135deg, #fab1a0 0%, #e17055 100%);
+            border: 3px solid #d63031;
+        }
+
+        .verdict-rank {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .verdict-country {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .verdict-reason {
+            font-size: 0.95rem;
+            color: #444;
+            line-height: 1.6;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--dark);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .footer h3 {
+            margin-bottom: 20px;
+        }
+
+        .footer-note {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.5);
+            margin-top: 20px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .admin-panel {
+                width: 100%;
+                left: -100%;
+            }
+
+            .country-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .pros-cons {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Edit mode indicator */
+        .edit-mode-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--warning);
+            color: var(--dark);
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            z-index: 998;
+            display: none;
+            animation: pulse 2s infinite;
+        }
+
+        body.edit-mode .edit-mode-indicator {
+            display: block;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Editable content */
+        body.edit-mode [contenteditable="true"] {
+            outline: 2px dashed var(--accent);
+            outline-offset: 3px;
+            cursor: text;
+        }
+
+        body.edit-mode [contenteditable="true"]:focus {
+            outline: 2px solid var(--accent);
+            background: rgba(102, 126, 234, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Edit Mode Indicator -->
+    <div class="edit-mode-indicator">✏️ Mode Édition Actif</div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">✅ Sauvegardé !</div>
+
+    <!-- Admin Toggle Button -->
+    <button class="admin-toggle" id="adminToggle" onclick="toggleAdmin()">
+        <span>⚙️</span>
+        <span>Admin</span>
+    </button>
+
+    <!-- Admin Panel -->
+    <div class="admin-panel" id="adminPanel">
+        <h2>⚙️ Panneau Admin</h2>
+
+        <div class="admin-section">
+            <h3>👥 Mode Budget</h3>
+            <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
+                Affiche les budgets pour une personne seule ou un couple.
+            </p>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button class="admin-btn" id="btnSolo" onclick="setMode(false)">
+                    👤 Solo
+                </button>
+                <button class="admin-btn primary" id="btnCouple" onclick="setMode(true)">
+                    👫 Couple
+                </button>
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <h3>🎨 Mode Édition</h3>
+            <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
+                Active le mode édition pour modifier les textes directement sur la page.
+            </p>
+            <button class="admin-btn warning" onclick="toggleEditMode()">
+                ✏️ Activer/Désactiver Mode Édition
+            </button>
+        </div>
+
+        <div class="admin-section">
+            <h3>🌍 Gérer les Pays</h3>
+            <button class="admin-btn primary" onclick="openAddCountryModal()">
+                ➕ Ajouter un Pays
+            </button>
+            <div class="country-list-admin" id="countryListAdmin"></div>
+        </div>
+
+        <div class="admin-section">
+            <h3>💾 Sauvegarder / Charger</h3>
+            <button class="admin-btn success" onclick="saveData()">
+                💾 Sauvegarder
+            </button>
+            <button class="admin-btn primary" onclick="exportData()">
+                📤 Exporter JSON
+            </button>
+            <button class="admin-btn warning" onclick="document.getElementById('importFile').click()">
+                📥 Importer JSON
+            </button>
+            <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+            <button class="admin-btn danger" onclick="resetData()">
+                🔄 Réinitialiser
+            </button>
+        </div>
+
+        <div class="admin-section">
+            <h3>ℹ️ Instructions</h3>
+            <ul style="font-size: 0.85rem; color: #666; padding-left: 20px;">
+                <li>Active le <strong>Mode Édition</strong> pour cliquer et modifier les textes</li>
+                <li><strong>Ajouter un Pays</strong> pour créer une nouvelle carte</li>
+                <li><strong>Sauvegarder</strong> enregistre en local (navigateur)</li>
+                <li><strong>Exporter</strong> télécharge un fichier JSON</li>
+                <li><strong>Importer</strong> charge un fichier JSON</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Add/Edit Country Modal -->
+    <div class="modal-overlay" id="countryModal">
+        <div class="modal">
+            <h2 id="modalTitle">➕ Ajouter un Pays</h2>
+            <input type="hidden" id="editingCountryId">
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>🏳️ Drapeau (emoji)</label>
+                    <input type="text" class="admin-input" id="countryFlag" placeholder="🇫🇷">
+                </div>
+                <div class="form-group">
+                    <label>🌍 Nom du pays</label>
+                    <input type="text" class="admin-input" id="countryName" placeholder="France">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>💬 Slogan</label>
+                <input type="text" class="admin-input" id="countryTagline" placeholder="Le pays de la gastronomie">
+            </div>
+
+            <div class="form-group">
+                <label>🎨 Couleur (hex)</label>
+                <input type="color" class="admin-input" id="countryColor" value="#667eea" style="height: 50px; cursor: pointer;">
+            </div>
+
+            <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px; font-weight: 600;">👤 Budget Solo</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>💰 Budget min Solo</label>
+                    <input type="number" class="admin-input" id="budgetMinSolo" placeholder="1000">
+                </div>
+                <div class="form-group">
+                    <label>💰 Budget max Solo</label>
+                    <input type="number" class="admin-input" id="budgetMaxSolo" placeholder="1500">
+                </div>
+            </div>
+
+            <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px; font-weight: 600;">👫 Budget Couple (2 chambres)</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>💰 Budget min Couple</label>
+                    <input type="number" class="admin-input" id="budgetMinCouple" placeholder="1500">
+                </div>
+                <div class="form-group">
+                    <label>💰 Budget max Couple</label>
+                    <input type="number" class="admin-input" id="budgetMaxCouple" placeholder="2000">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>🏠 Logement Solo</label>
+                    <input type="text" class="admin-input" id="housingSolo" placeholder="400-600 €">
+                </div>
+                <div class="form-group">
+                    <label>🏠 Logement Couple 2ch</label>
+                    <input type="text" class="admin-input" id="housingCouple" placeholder="700-1000 €">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>📉 Économie vs France (%)</label>
+                <input type="text" class="admin-input" id="savingsVsFrance" placeholder="-50%">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>📋 Type de Visa</label>
+                    <input type="text" class="admin-input" id="visaType" placeholder="Visa touriste">
+                </div>
+                <div class="form-group">
+                    <label>💵 Coût Visa (1 pers)</label>
+                    <input type="text" class="admin-input" id="visaCost" placeholder="50 €">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>✈️ Vol aller (1 pers)</label>
+                    <input type="text" class="admin-input" id="flightCost" placeholder="400-700 €">
+                </div>
+                <div class="form-group">
+                    <label>🌐 Internet/Infos</label>
+                    <input type="text" class="admin-input" id="internet" placeholder="100 Mbps">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>✅ Avantages (un par ligne)</label>
+                <textarea class="admin-textarea" id="pros" placeholder="🌐 Bon internet&#10;💰 Pas cher&#10;🍜 Bonne cuisine"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>❌ Inconvénients (un par ligne)</label>
+                <textarea class="admin-textarea" id="cons" placeholder="🌡️ Climat difficile&#10;📋 Visa compliqué"></textarea>
+            </div>
+
+            <div class="modal-actions">
+                <button class="admin-btn" onclick="closeModal()">Annuler</button>
+                <button class="admin-btn success" onclick="saveCountry()">💾 Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1 contenteditable="false">🌍 Où <span>s'expatrier</span> en 2026 ?</h1>
+        <p contenteditable="false">Comparatif pour couple avec bureau (appart 2 chambres)</p>
+        <div class="flags" id="heroFlags"></div>
+        <div id="modeIndicator" style="margin-top: 20px; padding: 10px 25px; background: rgba(255,255,255,0.2); border-radius: 50px; display: inline-block; font-weight: 600; color: white;">
+            👫 Mode Couple (2 chambres)
+        </div>
+    </section>
+
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container" id="navContainer"></div>
+    </nav>
+
+    <div class="container">
+        <!-- Country Cards Section -->
+        <section id="countries">
+            <div class="section-title">
+                <h2>🗺️ Les Destinations</h2>
+                <p>Découvre chaque pays en détail</p>
+            </div>
+            <div class="country-cards" id="countryCards"></div>
+        </section>
+
+        <!-- Comparison Table -->
+        <section id="comparison" class="comparison-section">
+            <div class="section-title">
+                <h2>📊 Tableau Comparatif</h2>
+                <p>Tous les critères côte à côte</p>
+            </div>
+            <table class="comparison-table" id="comparisonTable"></table>
+        </section>
+
+        <!-- Budget Section -->
+        <section id="budget" class="budget-section">
+            <div class="section-title">
+                <h2>💰 Budget de Départ</h2>
+                <p>Combien prévoir pour t'installer</p>
+            </div>
+            <div class="budget-cards" id="budgetCards"></div>
+        </section>
+
+        <!-- Verdict Section -->
+        <section id="verdict" class="verdict-section">
+            <div class="section-title">
+                <h2>🏆 Le Verdict</h2>
+                <p>Le classement final</p>
+            </div>
+            <div class="verdict-grid" id="verdictGrid"></div>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <h3>🌍 Comparatif Expatriation</h3>
+        <p class="footer-note">Créé avec ❤️ • Données 2025-2026 • Totalement éditable</p>
+    </footer>
+
+    <script>
+        // Default data
+        const defaultCountries = [
+            {
+                id: 1,
+                flag: "🇹🇭",
+                name: "Thaïlande",
+                tagline: "Le paradis des Digital Nomads",
+                color: "#FF6B35",
+                budgetMinSolo: 1200,
+                budgetMaxSolo: 2000,
+                budgetMinCouple: 2200,
+                budgetMaxCouple: 3000,
+                housingSolo: "400-700 €",
+                housingCouple: "700-1200 €",
+                savingsVsFrance: "-50%",
+                visaType: "DTV 5 ans",
+                visaCost: "350 €",
+                internet: "500+ Mbps",
+                flightCost: "400-700 €",
+                pros: ["🌐 Infrastructure moderne top", "👥 Énorme communauté expat", "🏥 Hôpitaux internationaux", "🌴 Plages paradisiaques", "✈️ Hub aérien Asie"],
+                cons: ["🌡️ Chaleur intense 30-40°C", "💰 Plus cher que Vietnam", "📋 Visa complexe (13k€ requis)", "🚗 Trafic Bangkok infernal"],
+                rank: 2,
+                verdict: "Meilleure infrastructure pour le trading, communauté massive, mais budget plus élevé."
+            },
+            {
+                id: 2,
+                flag: "🇻🇳",
+                name: "Vietnam",
+                tagline: "L'Asie authentique à prix mini 🏆",
+                color: "#DA1F26",
+                budgetMinSolo: 1000,
+                budgetMaxSolo: 1500,
+                budgetMinCouple: 1800,
+                budgetMaxCouple: 2500,
+                housingSolo: "220-525 €",
+                housingCouple: "500-900 €",
+                savingsVsFrance: "-61%",
+                visaType: "90 jours",
+                visaCost: "25-150 €",
+                internet: "Variable + VPN",
+                flightCost: "500-800 €",
+                pros: ["📈 Économie très dynamique", "💵 Prix imbattables", "🍜 Meilleure gastronomie", "🌆 Villes vibrantes", "📊 82% voient carrière s'améliorer"],
+                cons: ["📜 Visa compliqué à renouveler", "🏥 Santé limitée (assurance 500-1500€/an)", "🌧️ Pollution air (Hanoi)", "🔌 VPN nécessaire"],
+                rank: 1,
+                verdict: "Meilleur rapport qualité/prix, opportunités business Asie, économie dynamique. Budget couple très abordable."
+            }
+        ];
+
+        // State
+        let countries = [];
+        let editMode = false;
+        let coupleMode = true; // Par défaut en mode couple
+
+        // Initialize
+        function init() {
+            loadData();
+            renderAll();
+            updateAdminCountryList();
+        }
+
+        // Load data from localStorage or use defaults
+        function loadData() {
+            const saved = localStorage.getItem('expatriationData');
+            if (saved) {
+                countries = JSON.parse(saved);
+            } else {
+                countries = [...defaultCountries];
+            }
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            // Get editable content if in edit mode
+            if (editMode) {
+                document.querySelectorAll('[contenteditable="true"]').forEach(el => {
+                    el.blur();
+                });
+            }
+            localStorage.setItem('expatriationData', JSON.stringify(countries));
+            showToast('✅ Sauvegardé !');
+        }
+
+        // Export data as JSON
+        function exportData() {
+            const dataStr = JSON.stringify(countries, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'expatriation-data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('📤 Exporté !');
+        }
+
+        // Import data from JSON
+        function importData(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        countries = JSON.parse(e.target.result);
+                        saveData();
+                        renderAll();
+                        updateAdminCountryList();
+                        showToast('📥 Importé !');
+                    } catch (err) {
+                        alert('Erreur: fichier JSON invalide');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        // Reset to defaults
+        function resetData() {
+            if (confirm('⚠️ Réinitialiser toutes les données ?')) {
+                countries = [...defaultCountries];
+                saveData();
+                renderAll();
+                updateAdminCountryList();
+                showToast('🔄 Réinitialisé !');
+            }
+        }
+
+        // Toggle admin panel
+        function toggleAdmin() {
+            const panel = document.getElementById('adminPanel');
+            const toggle = document.getElementById('adminToggle');
+            panel.classList.toggle('open');
+            toggle.classList.toggle('active');
+        }
+
+        // Toggle edit mode
+        function toggleEditMode() {
+            editMode = !editMode;
+            document.body.classList.toggle('edit-mode', editMode);
+
+            // Make text editable
+            const editables = document.querySelectorAll('.card-country, .card-tagline, .budget-amount, .hero h1, .hero p, .section-title h2, .section-title p');
+            editables.forEach(el => {
+                el.contentEditable = editMode;
+            });
+
+            showToast(editMode ? '✏️ Mode édition activé' : '👁️ Mode lecture activé');
+        }
+
+        // Show toast notification
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Render everything
+        function renderAll() {
+            renderHeroFlags();
+            renderNavigation();
+            renderCountryCards();
+            renderComparisonTable();
+            renderBudgetCards();
+            renderVerdict();
+        }
+
+        // Render hero flags
+        function renderHeroFlags() {
+            const container = document.getElementById('heroFlags');
+            container.innerHTML = countries.map((c, i) => `
+                <div class="flag-item" style="animation-delay: ${i * 0.5}s" title="${c.name}">${c.flag}</div>
+            `).join('');
+        }
+
+        // Render navigation
+        function renderNavigation() {
+            const nav = document.getElementById('navContainer');
+            let html = countries.map(c => `
+                <button class="nav-btn" onclick="document.getElementById('countries').scrollIntoView({behavior:'smooth'})">${c.flag} ${c.name}</button>
+            `).join('');
+            html += `
+                <button class="nav-btn" onclick="document.getElementById('comparison').scrollIntoView({behavior:'smooth'})">📊 Comparatif</button>
+                <button class="nav-btn" onclick="document.getElementById('budget').scrollIntoView({behavior:'smooth'})">💰 Budget</button>
+                <button class="nav-btn" onclick="document.getElementById('verdict').scrollIntoView({behavior:'smooth'})">🏆 Verdict</button>
+            `;
+            nav.innerHTML = html;
+        }
+
+        // Set mode (solo/couple)
+        function setMode(isCouple) {
+            coupleMode = isCouple;
+            document.getElementById('btnSolo').className = isCouple ? 'admin-btn' : 'admin-btn primary';
+            document.getElementById('btnCouple').className = isCouple ? 'admin-btn primary' : 'admin-btn';
+            document.getElementById('modeIndicator').innerHTML = isCouple ? '👫 Mode Couple (2 chambres)' : '👤 Mode Solo (studio)';
+            renderAll();
+            showToast(isCouple ? '👫 Mode Couple activé' : '👤 Mode Solo activé');
+        }
+
+        // Get budget values based on mode
+        function getBudget(c) {
+            return {
+                min: coupleMode ? (c.budgetMinCouple || c.budgetMin) : (c.budgetMinSolo || c.budgetMin),
+                max: coupleMode ? (c.budgetMaxCouple || c.budgetMax) : (c.budgetMaxSolo || c.budgetMax),
+                housing: coupleMode ? (c.housingCouple || c.housing) : (c.housingSolo || c.housing)
+            };
+        }
+
+        // Render country cards
+        function renderCountryCards() {
+            const container = document.getElementById('countryCards');
+            const modeLabel = coupleMode ? '👫 Couple (2 chambres)' : '👤 Solo';
+
+            container.innerHTML = countries.map(c => {
+                const budget = getBudget(c);
+                return `
+                <div class="country-card" data-id="${c.id}">
+                    <button class="delete-card" onclick="deleteCountry(${c.id})">🗑️</button>
+                    <div class="card-header" style="background: linear-gradient(135deg, ${c.color} 0%, ${adjustColor(c.color, 20)} 100%)">
+                        <div class="card-flag">${c.flag}</div>
+                        <div class="card-country">${c.name}</div>
+                        <div class="card-tagline">${c.tagline}</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="budget-highlight">
+                            <div class="budget-label">Budget mensuel ${modeLabel}</div>
+                            <div class="budget-amount">${budget.min} - ${budget.max} €</div>
+                            <div class="budget-note">${c.savingsVsFrance} vs France</div>
+                        </div>
+                        <div class="card-stats">
+                            <div class="stat-item">
+                                <div class="stat-icon">📋</div>
+                                <div class="stat-value">${c.visaType}</div>
+                                <div class="stat-label">Visa</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">💵</div>
+                                <div class="stat-value">${coupleMode ? (c.visaCost === 'GRATUIT' ? 'GRATUIT x2' : c.visaCost + ' x2') : c.visaCost}</div>
+                                <div class="stat-label">Coût visa</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">🏠</div>
+                                <div class="stat-value">${budget.housing}</div>
+                                <div class="stat-label">${coupleMode ? 'Appart 2ch' : 'Studio'}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">🌐</div>
+                                <div class="stat-value">${c.internet}</div>
+                                <div class="stat-label">Internet</div>
+                            </div>
+                        </div>
+                        <div class="pros-cons">
+                            <div class="pros">
+                                <h4>✅ Avantages</h4>
+                                <ul>${c.pros.map(p => `<li>${p}</li>`).join('')}</ul>
+                            </div>
+                            <div class="cons">
+                                <h4>❌ Inconvénients</h4>
+                                <ul>${c.cons.map(con => `<li>${con}</li>`).join('')}</ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        // Render comparison table
+        function renderComparisonTable() {
+            const table = document.getElementById('comparisonTable');
+            const modeLabel = coupleMode ? '👫 Couple' : '👤 Solo';
+            const budgets = countries.map(c => getBudget(c));
+            const minBudget = Math.min(...budgets.map(b => b.min));
+
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Critère ${modeLabel}</th>
+                        ${countries.map(c => `<th>${c.flag} ${c.name}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>💰 Budget mensuel</td>
+                        ${countries.map((c, i) => `<td class="${budgets[i].min === minBudget ? 'winner' : ''}">${budgets[i].min} - ${budgets[i].max} €${budgets[i].min === minBudget ? ' 🏆' : ''}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td>🏠 Logement ${coupleMode ? '2 chambres' : 'studio'}</td>
+                        ${countries.map((c, i) => `<td>${budgets[i].housing}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td>📋 Type de visa</td>
+                        ${countries.map(c => `<td>${c.visaType}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td>💵 Coût du visa ${coupleMode ? '(x2)' : ''}</td>
+                        ${countries.map(c => `<td class="${c.visaCost === 'GRATUIT' ? 'winner' : ''}">${c.visaCost === 'GRATUIT' ? 'GRATUIT' : (coupleMode ? '~' + (parseInt(c.visaCost) * 2 || c.visaCost + ' x2') : c.visaCost)}${c.visaCost === 'GRATUIT' ? ' 🏆' : ''}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td>✈️ Vol aller ${coupleMode ? '(x2)' : ''}</td>
+                        ${countries.map(c => `<td>${coupleMode ? c.flightCost + ' x2' : c.flightCost}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td>📉 vs France</td>
+                        ${countries.map(c => `<td>${c.savingsVsFrance}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td>🌐 Internet</td>
+                        ${countries.map(c => `<td>${c.internet}</td>`).join('')}
+                    </tr>
+                </tbody>
+            `;
+        }
+
+        // Render budget cards
+        function renderBudgetCards() {
+            const container = document.getElementById('budgetCards');
+            const modeLabel = coupleMode ? '👫 Couple' : '👤 Solo';
+            const nbPersons = coupleMode ? 2 : 1;
+
+            container.innerHTML = countries.map(c => {
+                const budget = getBudget(c);
+                const flightCostBase = c.flightCost || '400-700 €';
+                const flightMin = parseInt(flightCostBase.split('-')[0]) * nbPersons;
+                const flightMax = parseInt(flightCostBase.split('-')[1]) * nbPersons;
+
+                const visaCostNum = c.visaCost === 'GRATUIT' ? 0 : (parseInt(c.visaCost) || 150);
+                const visaCostTotal = visaCostNum * nbPersons;
+
+                const depositMin = Math.round(budget.min * 0.6);
+                const depositMax = Math.round(budget.max * 0.6);
+
+                const equipement = coupleMode ? 400 : 200;
+                const buffer = Math.round(budget.min * 2);
+
+                const totalMin = flightMin + visaCostTotal + depositMin + budget.min + equipement + buffer;
+                const totalMax = flightMax + visaCostTotal + depositMax + budget.max + equipement + buffer;
+
+                return `
+                    <div class="budget-card">
+                        <div class="budget-card-header">
+                            <div class="budget-card-flag">${c.flag}</div>
+                            <div class="budget-card-title">${c.name} ${modeLabel}</div>
+                        </div>
+                        <div class="budget-item">
+                            <span class="budget-item-label">✈️ Vols aller ${coupleMode ? '(x2)' : ''}</span>
+                            <span class="budget-item-value">${flightMin} - ${flightMax} €</span>
+                        </div>
+                        <div class="budget-item">
+                            <span class="budget-item-label">📋 Visa ${coupleMode ? '(x2)' : ''}</span>
+                            <span class="budget-item-value">${visaCostTotal === 0 ? 'GRATUIT ✨' : visaCostTotal + ' €'}</span>
+                        </div>
+                        <div class="budget-item">
+                            <span class="budget-item-label">🏠 Caution appart ${coupleMode ? '2ch' : ''}</span>
+                            <span class="budget-item-value">${depositMin} - ${depositMax} €</span>
+                        </div>
+                        <div class="budget-item">
+                            <span class="budget-item-label">📅 Premier mois</span>
+                            <span class="budget-item-value">${budget.min} - ${budget.max} €</span>
+                        </div>
+                        <div class="budget-item">
+                            <span class="budget-item-label">🛒 Équipement maison</span>
+                            <span class="budget-item-value">${equipement} €</span>
+                        </div>
+                        <div class="budget-item">
+                            <span class="budget-item-label">🛡️ Buffer sécurité (2 mois)</span>
+                            <span class="budget-item-value">${buffer} €</span>
+                        </div>
+                        <div class="budget-total">
+                            <span>TOTAL DÉPART</span>
+                            <span>${totalMin.toLocaleString()} - ${totalMax.toLocaleString()} €</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Render verdict
+        function renderVerdict() {
+            const container = document.getElementById('verdictGrid');
+            const sorted = [...countries].sort((a, b) => a.rank - b.rank);
+            const medals = ['gold', 'silver', 'bronze', 'bronze'];
+            const ranks = ['🥇', '🥈', '🥉', '🏅'];
+
+            container.innerHTML = sorted.map((c, i) => `
+                <div class="verdict-card ${medals[i] || 'bronze'}">
+                    <div class="verdict-rank">${ranks[i] || '🏅'}</div>
+                    <div class="verdict-country">${c.flag} ${c.name}</div>
+                    <div class="verdict-reason">${c.verdict}</div>
+                </div>
+            `).join('');
+        }
+
+        // Update admin country list
+        function updateAdminCountryList() {
+            const list = document.getElementById('countryListAdmin');
+            list.innerHTML = countries.map(c => `
+                <div class="country-item-admin">
+                    <span>${c.flag} ${c.name}</span>
+                    <div class="country-actions">
+                        <button class="btn-edit" onclick="editCountry(${c.id})">✏️</button>
+                        <button class="btn-delete" onclick="deleteCountry(${c.id})">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Open add country modal
+        function openAddCountryModal() {
+            document.getElementById('modalTitle').textContent = '➕ Ajouter un Pays';
+            document.getElementById('editingCountryId').value = '';
+            document.getElementById('countryFlag').value = '';
+            document.getElementById('countryName').value = '';
+            document.getElementById('countryTagline').value = '';
+            document.getElementById('countryColor').value = '#667eea';
+            document.getElementById('budgetMinSolo').value = '';
+            document.getElementById('budgetMaxSolo').value = '';
+            document.getElementById('budgetMinCouple').value = '';
+            document.getElementById('budgetMaxCouple').value = '';
+            document.getElementById('housingSolo').value = '';
+            document.getElementById('housingCouple').value = '';
+            document.getElementById('savingsVsFrance').value = '';
+            document.getElementById('visaType').value = '';
+            document.getElementById('visaCost').value = '';
+            document.getElementById('flightCost').value = '';
+            document.getElementById('internet').value = '';
+            document.getElementById('pros').value = '';
+            document.getElementById('cons').value = '';
+            document.getElementById('countryModal').classList.add('active');
+        }
+
+        // Edit country
+        function editCountry(id) {
+            const c = countries.find(x => x.id === id);
+            if (!c) return;
+
+            document.getElementById('modalTitle').textContent = '✏️ Modifier ' + c.name;
+            document.getElementById('editingCountryId').value = c.id;
+            document.getElementById('countryFlag').value = c.flag;
+            document.getElementById('countryName').value = c.name;
+            document.getElementById('countryTagline').value = c.tagline;
+            document.getElementById('countryColor').value = c.color;
+            document.getElementById('budgetMinSolo').value = c.budgetMinSolo || c.budgetMin || '';
+            document.getElementById('budgetMaxSolo').value = c.budgetMaxSolo || c.budgetMax || '';
+            document.getElementById('budgetMinCouple').value = c.budgetMinCouple || '';
+            document.getElementById('budgetMaxCouple').value = c.budgetMaxCouple || '';
+            document.getElementById('housingSolo').value = c.housingSolo || c.housing || '';
+            document.getElementById('housingCouple').value = c.housingCouple || '';
+            document.getElementById('savingsVsFrance').value = c.savingsVsFrance;
+            document.getElementById('visaType').value = c.visaType;
+            document.getElementById('visaCost').value = c.visaCost;
+            document.getElementById('flightCost').value = c.flightCost || '';
+            document.getElementById('internet').value = c.internet;
+            document.getElementById('pros').value = c.pros.join('\n');
+            document.getElementById('cons').value = c.cons.join('\n');
+            document.getElementById('countryModal').classList.add('active');
+        }
+
+        // Save country
+        function saveCountry() {
+            const editingId = document.getElementById('editingCountryId').value;
+            const country = {
+                id: editingId ? parseInt(editingId) : Date.now(),
+                flag: document.getElementById('countryFlag').value || '🏳️',
+                name: document.getElementById('countryName').value || 'Nouveau Pays',
+                tagline: document.getElementById('countryTagline').value || 'Description',
+                color: document.getElementById('countryColor').value || '#667eea',
+                budgetMinSolo: parseInt(document.getElementById('budgetMinSolo').value) || 1000,
+                budgetMaxSolo: parseInt(document.getElementById('budgetMaxSolo').value) || 1500,
+                budgetMinCouple: parseInt(document.getElementById('budgetMinCouple').value) || 1500,
+                budgetMaxCouple: parseInt(document.getElementById('budgetMaxCouple').value) || 2000,
+                housingSolo: document.getElementById('housingSolo').value || '400-600 €',
+                housingCouple: document.getElementById('housingCouple').value || '700-1000 €',
+                savingsVsFrance: document.getElementById('savingsVsFrance').value || '-50%',
+                visaType: document.getElementById('visaType').value || 'Visa touriste',
+                visaCost: document.getElementById('visaCost').value || '50 €',
+                flightCost: document.getElementById('flightCost').value || '400-700 €',
+                internet: document.getElementById('internet').value || 'Bon',
+                pros: document.getElementById('pros').value.split('\n').filter(x => x.trim()),
+                cons: document.getElementById('cons').value.split('\n').filter(x => x.trim()),
+                rank: countries.length + 1,
+                verdict: "Nouvelle destination à explorer."
+            };
+
+            if (editingId) {
+                const index = countries.findIndex(c => c.id === parseInt(editingId));
+                if (index !== -1) {
+                    country.rank = countries[index].rank;
+                    country.verdict = countries[index].verdict;
+                    countries[index] = country;
+                }
+            } else {
+                countries.push(country);
+            }
+
+            closeModal();
+            saveData();
+            renderAll();
+            updateAdminCountryList();
+        }
+
+        // Delete country
+        function deleteCountry(id) {
+            if (confirm('🗑️ Supprimer ce pays ?')) {
+                countries = countries.filter(c => c.id !== id);
+                saveData();
+                renderAll();
+                updateAdminCountryList();
+            }
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('countryModal').classList.remove('active');
+        }
+
+        // Helper: adjust color brightness
+        function adjustColor(hex, percent) {
+            const num = parseInt(hex.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = (num >> 16) + amt;
+            const G = (num >> 8 & 0x00FF) + amt;
+            const B = (num & 0x0000FF) + amt;
+            return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+        }
+
+        // Close modal on outside click
+        document.getElementById('countryModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

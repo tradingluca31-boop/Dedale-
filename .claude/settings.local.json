@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__memory__create_entities",
+      "Bash(start \"\" \"c:\\\\Users\\\\lbye3\\\\OneDrive\\\\Desktop\\\\EA FTMO CLAUDE CODE\\\\expatriation-comparatif.html\")",
+      "Bash(explorer:*)",
+      "Bash(cmd /c start \"\" \"c:\\\\Users\\\\lbye3\\\\OneDrive\\\\Desktop\\\\EA FTMO CLAUDE CODE\\\\budget-expatriation.html\")",
+      "Bash(powershell -Command \"Start-Process ''c:\\\\Users\\\\lbye3\\\\OneDrive\\\\Desktop\\\\EA FTMO CLAUDE CODE\\\\budget-expatriation.html''\")",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit - Dedale EA v8\n\nMulti-timeframe trend-following EA for XAUUSD \\(FTMO challenge\\)\n- H4 trend filter \\(EMA50/100 alignment\\)\n- H1 validation \\(SMMA50\\)\n- M15 entry \\(OTE + candle + RSI\\)\n- Pattern detection \\(H4/H1\\)\n- ATR-based SL, 3:1 R:R, Break Even at 2.5R\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(start \"\" \"c:\\\\Users\\\\lbye3\\\\OneDrive\\\\Desktop\\\\EA FTMO CLAUDE CODE\\\\budget-expatriation.html\")"
+    ]
+  }
+}
